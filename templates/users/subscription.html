@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}Абонемент{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-10 mx-auto">
+
+    <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-4">
+      <div>
+        <h1 class="h3 mb-1">🪪 Абонемент</h1>
+        <p class="text-muted mb-0">Оплата с баланса: разово можно оплатить заказ через корзину, а здесь — оформить абонемент.</p>
+      </div>
+      <div>
+        <a href="{% url 'wallet' %}" class="btn btn-outline-success">
+          <i class="bi bi-wallet2"></i> Пополнить баланс
+        </a>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <h4 class="mb-3">Абонементы на сегодня ({{ today|date:"d.m.Y" }})</h4>
+
+      {% if active_subs %}
+        {% for sub in active_subs %}
+          <div class="border rounded p-3 mb-3">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <div>
+                <div class="fw-semibold">{{ sub.get_plan_display }}</div>
+                <div class="text-muted small">
+                  {{ sub.start_date|date:"d.m.Y" }} — {{ sub.end_date|date:"d.m.Y" }}
+                </div>
+              </div>
+
+              <form method="post" action="{% url 'subscription_cancel' sub.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                  Отменить
+                </button>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="text-muted">На сегодня нет активных абонементов.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+
+    </div>
+  </div>
+</div>
+
+
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-white">
+        <h5 class="mb-0">Оформить / продлить абонемент</h5>
+      </div>
+      <div class="card-body">
+
+        <form method="post" class="row g-3">
+          {% csrf_token %}
+
+          <div class="col-md-6">
+            <label class="form-label">Тариф</label>
+            <select name="plan" class="form-select" required>
+              <option value="" selected disabled>Выберите тариф</option>
+              {% for value, label in plans %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Период</label>
+            <select name="period" class="form-select" required>
+              <option value="" selected disabled>Выберите период</option>
+              {% for value, label in periods %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-12">
+            <div class="alert alert-info mb-0">
+              <div class="fw-semibold mb-2">Цены (для кейса):</div>
+              <ul class="mb-0">
+                <li>Завтраки: 1 неделя — 350 ₽, 1 месяц — 1400 ₽</li>
+                <li>Обеды: 1 неделя — 550 ₽, 1 месяц — 2200 ₽</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2 mt-4">
+            <div class="text-muted">
+              Ваш баланс: <b>{{ user.balance }}</b> ₽
+            </div>
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-credit-card"></i> Оплатить и оформить
+            </button>
+          </div>
+
+          <div class="col-12">
+            <div class="text-muted small">
+              Если вы покупаете тариф, который уже активен — он будет продлён.
+            </div>
+          </div>
+        </form>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

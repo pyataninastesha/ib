@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Панель администратора{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-10 mx-auto">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+      <div>
+        <h1 class="h3 mb-1">👨‍💼 Панель администратора</h1>
+        <p class="text-muted mb-0">Согласование закупок, контроль абонементов и посещаемости</p>
+      </div>
+    </div>
+
+          {% if org %}
+      <div class="alert alert-info d-flex justify-content-between align-items-center">
+        <div>
+          <div><strong>Код подключения организации:</strong> <span style="font-size:1.2em">{{ join_code }}</span></div>
+          <div class="small">Участники вводят этот код при регистрации, чтобы подключиться к вашему заведению.</div>
+        </div>
+        <a class="btn btn-outline-primary" href="{% url 'organization_settings' %}">Настроить</a>
+      </div>
+      {% endif %}
+
+    <div class="row g-4">
+      <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+          <div class="card-body">
+            <i class="bi bi-graph-up display-5 text-primary mb-3"></i>
+            <h5>Сводка на сегодня</h5>
+            <div class="small text-muted mb-2">{{ today|date:"d.m.Y" }}</div>
+            <ul class="list-unstyled mb-3">
+              <li>Активных абонементов: <b>{{ active_subs }}</b></li>
+              <li>Выдано поваром: <b>{{ issued_today }}</b></li>
+              <li>Подтверждено участниками: <b>{{ confirmed_today }}</b></li>
+            </ul>
+            <a href="{% url 'admin_subscriptions' %}" class="btn btn-outline-primary">Открыть</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+          <div class="card-body">
+            <i class="bi bi-check2-square display-5 text-success mb-3"></i>
+            <h5>Закупки</h5>
+            <p class="mb-2">Заявки от повара, после одобрения склад пополняется автоматически.</p>
+            <div class="small text-muted mb-3">Ожидают согласования: <b>{{ pending_purchases }}</b></div>
+            <a href="{% url 'admin_purchase' %}" class="btn btn-outline-success">Открыть</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+          <div class="card-body">
+            <i class="bi bi-file-earmark-text display-5 text-warning mb-3"></i>
+            <h5>Отчеты</h5>
+            <p class="mb-3">Отчеты по питанию и затратам (упрощено для кейса).</p>
+            <a href="#" class="btn btn-outline-warning disabled">Скоро</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

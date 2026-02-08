@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block title %}Главная - EcoFood Platform{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto text-center">
+        <h1 class="display-4 mb-4">Добро пожаловать в EcoFood Platform!</h1>
+        <p class="lead mb-4">Учет пищевых ресурсов и снижение пищевых отходов (food waste)</p>
+        
+        <div class="row mt-5">
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <i class="bi bi-egg-fried display-4 text-primary mb-3"></i>
+                        <h4>Свежие продукты</h4>
+                        <p>Используем только свежие и качественные ингредиенты</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <i class="bi bi-heart display-4 text-danger mb-3"></i>
+                        <h4>Учет аллергенов</h4>
+                        <p>Подробная информация об аллергенах в каждом блюде</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <i class="bi bi-lightning-charge display-4 text-warning mb-3"></i>
+                        <h4>Быстрый заказ</h4>
+                        <p>Заказывайте онлайн и забирайте без очереди</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-5">
+            <a href="{% url 'menu_list' %}" class="btn btn-primary btn-lg me-3">
+                <i class="bi bi-menu-button-wide"></i> Посмотреть меню
+            </a>
+            {% if not user.is_authenticated %}
+                <a href="{% url 'register' %}" class="btn btn-outline-primary btn-lg">
+                    <i class="bi bi-person-plus"></i> Зарегистрироваться
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

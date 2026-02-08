@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Абонементы и выдача{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-4">
+  <div>
+    <h2 class="mb-1">🎫 Абонементы и получение питания</h2>
+    <div class="text-muted">Активные абонементы и статусы получения за выбранный день.</div>
+  </div>
+
+  <form method="get" class="d-flex align-items-end gap-2">
+    <div>
+      <label class="form-label small mb-1">День</label>
+      <input type="date" name="date" value="{{ day|date:"Y-m-d" }}" class="form-control">
+    </div>
+    <button class="btn btn-primary mb-1">Показать</button>
+  </form>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <div class="text-muted small">Активных участников</div>
+        <div class="h4 mb-0">{{ total_active_users }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <div class="text-muted small">Активных приемов пищи</div>
+        <div class="h4 mb-0">{{ total_active_meals }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <div class="text-muted small">Переход в закупки</div>
+        <a class="btn btn-outline-success btn-sm mt-2" href="{% url 'admin_purchase' %}">Открыть закупки</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body">
+    <h5 class="mb-3">Список</h5>
+
+    {% if rows %}
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
+            <tr>
+              <th>Участник</th>
+              <th>Завтрак</th>
+              <th>Обед</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+              <tr>
+                <td><b>{{ r.user.username }}</b></td>
+
+                <td>
+                  {% with s=r.breakfast.state %}
+                    {% if s == "no_sub" %}
+                      <span class="badge bg-secondary">нет абонемента</span>
+                    {% elif s == "confirmed" %}
+                      <span class="badge bg-success">подтверждено</span>
+                    {% elif s == "issued" %}
+                      <span class="badge bg-primary">выдано</span>
+                    {% elif s == "requested" %}
+                      <span class="badge bg-warning text-dark">запрошено</span>
+                    {% elif s == "cancelled" %}
+                      <span class="badge bg-dark">отменено</span>
+                    {% else %}
+                      <span class="badge bg-light text-dark border">нет заявки</span>
+                    {% endif %}
+                  {% endwith %}
+                </td>
+
+                <td>
+                  {% with s=r.lunch.state %}
+                    {% if s == "no_sub" %}
+                      <span class="badge bg-secondary">нет абонемента</span>
+                    {% elif s == "confirmed" %}
+                      <span class="badge bg-success">подтверждено</span>
+                    {% elif s == "issued" %}
+                      <span class="badge bg-primary">выдано</span>
+                    {% elif s == "requested" %}
+                      <span class="badge bg-warning text-dark">запрошено</span>
+                    {% elif s == "cancelled" %}
+                      <span class="badge bg-dark">отменено</span>
+                    {% else %}
+                      <span class="badge bg-light text-dark border">нет заявки</span>
+                    {% endif %}
+                  {% endwith %}
+                </td>
+
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="text-muted">На выбранный день активных абонементов нет.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

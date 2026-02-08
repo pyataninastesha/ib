@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Кошелёк — EcoFood Platform{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="row g-4">
+
+    <!-- Баланс -->
+    <div class="col-lg-5">
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <div>
+              <div class="text-muted small">Текущий баланс</div>
+              <div class="display-6 fw-bold mb-0">
+                {{ user.balance|default:"0.00" }} ₽
+              </div>
+            </div>
+            <div class="rounded-circle bg-success-subtle d-flex align-items-center justify-content-center"
+                 style="width:56px;height:56px;">
+              <i class="bi bi-wallet2 fs-3 text-success"></i>
+            </div>
+          </div>
+
+          <div class="alert alert-info mb-0">
+            <i class="bi bi-info-circle me-1"></i>
+            Пополнение за один раз: <b>до 5000 ₽</b>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Пополнение -->
+      <div class="card shadow-sm border-0 mt-4">
+        <div class="card-body p-4">
+          <h5 class="mb-3">Пополнить баланс</h5>
+
+          <form method="post" action="{% url 'wallet' %}">
+            {% csrf_token %}
+
+            <label class="form-label">Сумма</label>
+            <div class="input-group input-group-lg mb-2">
+              <span class="input-group-text">₽</span>
+              <input type="number"
+                     name="amount"
+                     class="form-control"
+                     min="1"
+                     max="5000"
+                     step="1"
+                     placeholder="Например: 300"
+                     required>
+              <button class="btn btn-primary" type="submit">
+                <i class="bi bi-plus-circle me-1"></i> Пополнить
+              </button>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mt-3">
+              <button type="button" class="btn btn-outline-secondary btn-sm quick-amount" data-amount="100">+100</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm quick-amount" data-amount="300">+300</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm quick-amount" data-amount="500">+500</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm quick-amount" data-amount="1000">+1000</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm quick-amount" data-amount="3000">+3000</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm quick-amount" data-amount="5000">+5000</button>
+            </div>
+
+            <div class="form-text mt-2">
+              Минимум: 1 ₽ • Максимум: 5000 ₽
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- История пополнений -->
+    <div class="col-lg-7">
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <h5 class="mb-0">История пополнений</h5>
+            <span class="badge bg-secondary">Последние {{ topups|length }}</span>
+          </div>
+
+          {% if topups %}
+            <div class="list-group list-group-flush">
+              {% for t in topups %}
+                <div class="list-group-item d-flex align-items-center justify-content-between py-3">
+                  <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-primary-subtle d-flex align-items-center justify-content-center"
+                         style="width:42px;height:42px;">
+                      <i class="bi bi-arrow-down-circle text-primary"></i>
+                    </div>
+                    <div>
+                      <div class="fw-semibold">Пополнение</div>
+                      <div class="text-muted small">{{ t.created_at|date:"d.m.Y H:i" }}</div>
+                    </div>
+                  </div>
+
+                  <div class="text-end">
+                    <div class="fw-bold text-success">+{{ t.amount }} ₽</div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-muted text-center py-5">
+              <i class="bi bi-clock-history display-6"></i>
+              <div class="mt-2">Пополений пока нет</div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Подсказки -->
+      <div class="card border-0 bg-light mt-4">
+        <div class="card-body">
+          <div class="d-flex gap-2 align-items-start">
+            <i class="bi bi-shield-check text-success fs-4"></i>
+            <div>
+              <div class="fw-semibold">Безопасность</div>
+              <div class="text-muted small">
+                Пополнять баланс может только участник. Лимит 5000 ₽ защищён на сервере.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    const input = document.querySelector('input[name="amount"]');
+    document.querySelectorAll('.quick-amount').forEach(btn => {
+      btn.addEventListener('click', () => {
+        input.value = btn.dataset.amount;
+        input.focus();
+      });
+    });
+  })();
+</script>
+{% endblock %}

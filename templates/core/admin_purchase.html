@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Закупки{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">📦 Заявки на закупку</h2>
+
+<h4>В работе</h4>
+
+{% if items %}
+  <table class="table table-striped align-middle">
+    <thead>
+      <tr>
+        <th>Продукт</th>
+        <th>Количество</th>
+        <th>От кого</th>
+        <th>Дата</th>
+        <th class="text-end">Действие</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in items %}
+      <tr>
+        <td>{{ r.title }}</td>
+        <td><b>{{ r.quantity }}</b> {{ r.unit }}</td>
+        <td>{{ r.created_by.username }}</td>
+        <td class="text-muted">{{ r.created_at|date:"d.m.Y H:i" }}</td>
+        <td class="text-end">
+          <form method="post" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="accept">
+            <input type="hidden" name="id" value="{{ r.id }}">
+            <button class="btn btn-sm btn-success">✔ Закуплено</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p class="text-muted">Нет заявок в работе.</p>
+{% endif %}
+
+<hr class="my-4">
+
+<h4>История (закуплено)</h4>
+
+{% if done_items %}
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr>
+        <th>Продукт</th>
+        <th>Количество</th>
+        <th>От кого</th>
+        <th>Дата</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in done_items %}
+      <tr>
+        <td>{{ r.title }}</td>
+        <td>{{ r.quantity }} {{ r.unit }}</td>
+        <td>{{ r.created_by.username }}</td>
+        <td class="text-muted">{{ r.created_at|date:"d.m.Y H:i" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p class="text-muted">Пока нет закупленных заявок.</p>
+{% endif %}
+
+{% endblock %}

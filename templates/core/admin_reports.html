@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}Eco отчёты{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h2 class="mb-0">Eco отчёты</h2>
+    <div class="text-muted">{% if org %}Организация: <strong>{{ org.name }}</strong>{% endif %}</div>
+  </div>
+  <a class="btn btn-outline-primary" href="{% url 'eco_dashboard' %}">Eco Dashboard</a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card h-100 shadow-sm"><div class="card-body">
+      <div class="text-muted">Активные прогнозы (абонементы)</div>
+      <div class="fs-3 fw-bold">{{ active_subs }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100 shadow-sm"><div class="card-body">
+      <div class="text-muted">Закупки в работе</div>
+      <div class="fs-3 fw-bold">{{ pending_purchases }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100 shadow-sm"><div class="card-body">
+      <div class="text-muted">Риск отходов (7 дней)</div>
+      <div class="fs-3 fw-bold">{{ totals.waste_risk }}</div>
+    </div></div>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header bg-white"><strong>7 дней: план / прогноз / факт</strong></div>
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>Дата</th>
+          <th>План</th>
+          <th>Прогноз</th>
+          <th>Выдано</th>
+          <th>Потреблено</th>
+          <th>Риск отходов</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          <tr>
+            <td>{{ r.date|date:"d.m" }}</td>
+            <td>{{ r.planned }}</td>
+            <td>{{ r.forecast }}</td>
+            <td>{{ r.issued }}</td>
+            <td>{{ r.confirmed }}</td>
+            <td><strong>{{ r.waste_risk }}</strong></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th>Итого</th>
+          <th>{{ totals.planned }}</th>
+          <th>{{ totals.forecast }}</th>
+          <th>{{ totals.issued }}</th>
+          <th>{{ totals.confirmed }}</th>
+          <th>{{ totals.waste_risk }}</th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endblock %}

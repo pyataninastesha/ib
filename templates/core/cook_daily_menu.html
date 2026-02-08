@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}Меню дня{% endblock %}
+{% block content %}
+
+<h2 class="mb-3">Меню дня ({{ today|date:"d.m.Y" }})</h2>
+
+
+<form method="get" class="mb-3 d-flex gap-2 align-items-end">
+  <div>
+    <label class="form-label mb-1">Дата</label>
+    <input type="date" name="date" value="{{ selected_day|date:'Y-m-d' }}" class="form-control">
+  </div>
+</form>
+
+
+<form method="post" class="card p-3 mb-4">
+  {% csrf_token %}
+
+  <div class="row mb-3">
+    <div class="col-md-6">
+      <label class="form-label">План порций (утро)</label>
+      <input type="number" name="planned_breakfast_portions" class="form-control" min="0" value="{{ daily_menu.planned_breakfast_portions|default:0 }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">План порций (день)</label>
+      <input type="number" name="planned_lunch_portions" class="form-control" min="0" value="{{ daily_menu.planned_lunch_portions|default:0 }}">
+    </div>
+  </div>
+
+  <div class="alert alert-info py-2">
+    <div><strong>Рекомендация (не сохраняет):</strong></div>
+    <div>Утро: {{ b_suggest_preview }} (прогноз {{ b_inputs_preview.forecast }}, история {{ b_inputs_preview.history_avg }}, отходы {{ b_inputs_preview.waste_avg }})</div>
+    <div>День: {{ l_suggest_preview }} (прогноз {{ l_inputs_preview.forecast }}, история {{ l_inputs_preview.history_avg }}, отходы {{ l_inputs_preview.waste_avg }})</div>
+    <button class="btn btn-outline-primary btn-sm mt-2" name="action" value="auto_plan" type="submit">
+      Рассчитать план порций
+    </button>
+  </div>
+
+  {# Если form.date есть — показываем, но можно и скрыть/убрать #}
+  {% if form.date %}
+    <div class="mb-3">
+      {{ form.date.label_tag }} {{ form.date }}
+    </div>
+  {% endif %}
+
+  <div class="row">
+    <div class="col-md-6">
+      <h5 class="mb-2">Завтраки</h5>
+      <div class="small text-muted mb-2">
+        Красным отмечены блюда, для которых недостаточно ингредиентов на складе.
+      </div>
+
+      {% for item in breakfast_items %}
+        <label class="d-block mb-1"
+               style="color:{% if item.id in not_available_ids %}red{% endif %};">
+          <input type="checkbox"
+                 name="breakfast_items"
+                 value="{{ item.id }}"
+                 {% if item.id in not_available_ids %}disabled{% endif %}
+                 {% if daily_menu and item in daily_menu.breakfast_items.all %}checked{% endif %}>
+          {{ item.name }}
+          {% if item.id in not_available_ids %}
+            — <strong>недостаточно ингредиентов</strong>
+          {% endif %}
+        </label>
+      {% empty %}
+        <div class="text-muted">Нет блюд в категории «Завтраки».</div>
+      {% endfor %}
+    </div>
+
+    <div class="col-md-6">
+      <h5 class="mb-2">Обеды</h5>
+      <div class="small text-muted mb-2">
+        Красным отмечены блюда, для которых недостаточно ингредиентов на складе.
+      </div>
+
+      {% for item in lunch_items %}
+        <label class="d-block mb-1"
+               style="color:{% if item.id in not_available_ids %}red{% endif %};">
+          <input type="checkbox"
+                 name="lunch_items"
+                 value="{{ item.id }}"
+                 {% if item.id in not_available_ids %}disabled{% endif %}
+                 {% if daily_menu and item in daily_menu.lunch_items.all %}checked{% endif %}>
+          {{ item.name }}
+          {% if item.id in not_available_ids %}
+            — <strong>недостаточно ингредиентов</strong>
+          {% endif %}
+        </label>
+      {% empty %}
+        <div class="text-muted">Нет блюд в категории «Обеды».</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <button class="btn btn-primary mt-3">Сохранить</button>
+</form>
+
+{% if daily_menu %}
+  <div class="card p-3">
+    <h4 class="mb-3">Что будет выдано ({{ selected_day|date:"d.m.Y" }})</h4>
+
+
+    <div class="row">
+      <div class="col-md-6">
+        <h5>Завтрак</h5>
+        <ul class="mb-0">
+          {% for item in daily_menu.breakfast_items.all %}
+            <li class="mb-2">
+              <b>{{ item.name }}</b><br>
+              <small class="text-muted">
+                Ингредиенты:
+                {% for ing in item.ingredients.all %}
+                  {{ ing.product.name }}{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+              </small><br>
+              <small><b>Рецепт:</b> {{ item.description|linebreaksbr }}</small>
+            </li>
+          {% empty %}
+            <li class="text-muted">Не задан.</li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <div class="col-md-6">
+        <h5>Обед</h5>
+        <ul class="mb-0">
+          {% for item in daily_menu.lunch_items.all %}
+            <li class="mb-2">
+              <b>{{ item.name }}</b><br>
+              <small class="text-muted">
+                Ингредиенты:
+                {% for ing in item.ingredients.all %}
+                  {{ ing.product.name }}{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+              </small><br>
+              <small><b>Рецепт:</b> {{ item.description|linebreaksbr }}</small>
+            </li>
+          {% empty %}
+            <li class="text-muted">Не задан.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+<hr class="my-4">
+
+<h3 class="mb-3">Меню по дням</h3>
+
+{% for menu in all_menus %}
+  <div class="card mb-3">
+    <div class="card-body">
+
+      <h5 class="mb-3">
+        📅 {{ menu.date|date:"d.m.Y" }}
+      </h5>
+
+      <div class="row">
+        <div class="col-md-6">
+          <strong>Завтрак</strong>
+          <ul class="mt-2">
+            {% for item in menu.breakfast_items.all %}
+              <li>{{ item.name }}</li>
+            {% empty %}
+              <li class="text-muted">Не задан</li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        <div class="col-md-6">
+          <strong>Обед</strong>
+          <ul class="mt-2">
+            {% for item in menu.lunch_items.all %}
+              <li>{{ item.name }}</li>
+            {% empty %}
+              <li class="text-muted">Не задан</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+{% empty %}
+  <div class="alert alert-warning">
+    Меню дня ещё не создавались.
+  </div>
+{% endfor %}
+
+{% endblock %}

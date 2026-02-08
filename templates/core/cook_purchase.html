@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Заявка на закупку{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">🛒 Заявка на закупку</h2>
+
+<h4>Черновик</h4>
+
+{% if draft_items %}
+  <table class="table table-striped align-middle">
+    <thead>
+      <tr>
+        <th>Продукт</th>
+        <th>Количество</th>
+        <th class="text-end">Действие</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in draft_items %}
+      <tr>
+        <td>{{ r.title }}</td>
+        <td><b>{{ r.quantity }}</b> {{ r.unit }}</td>
+        <td class="text-end">
+          <form method="post" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="id" value="{{ r.id }}">
+            <button class="btn btn-sm btn-outline-danger">✕ Удалить</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <form method="post" class="mt-3">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="send">
+    <button class="btn btn-primary">📤 Отправить администратору</button>
+  </form>
+{% else %}
+  <p class="text-muted">Черновик пуст. Добавляйте продукты со страницы склада.</p>
+{% endif %}
+
+<hr class="my-4">
+
+<h4>Отправленные / обработанные</h4>
+
+{% if sent_items %}
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr>
+        <th>Продукт</th>
+        <th>Количество</th>
+        <th>Статус</th>
+        <th>Дата</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in sent_items %}
+      <tr>
+        <td>{{ r.title }}</td>
+        <td>{{ r.quantity }} {{ r.unit }}</td>
+        <td>
+          {% if r.status == "in_progress" %}
+            <span class="badge bg-warning text-dark">В работе</span>
+          {% elif r.status == "done" %}
+            <span class="badge bg-success">Закуплено</span>
+          {% else %}
+            <span class="badge bg-secondary">{{ r.get_status_display }}</span>
+          {% endif %}
+        </td>
+        <td class="text-muted">{{ r.created_at|date:"d.m.Y H:i" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p class="text-muted">Пока нет отправленных заявок.</p>
+{% endif %}
+
+{% endblock %}

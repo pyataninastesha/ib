@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% block title %}Eco Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h2 class="mb-0">Eco Dashboard</h2>
+    <div class="text-muted">
+      {% if org %}
+        Организация: <strong>{{ org.name }}</strong>
+      {% else %}
+        Организация не задана
+      {% endif %}
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{% url 'organization_settings' %}">Организация</a>
+    <a class="btn btn-outline-primary" href="{% url 'admin_reports' %}">Отчёты</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card h-100 shadow-sm"><div class="card-body">
+      <div class="text-muted">План (7 дней)</div>
+      <div class="fs-3 fw-bold">{{ totals.planned }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100 shadow-sm"><div class="card-body">
+      <div class="text-muted">Прогноз (заявки)</div>
+      <div class="fs-3 fw-bold">{{ totals.forecast }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100 shadow-sm"><div class="card-body">
+      <div class="text-muted">Потреблено</div>
+      <div class="fs-3 fw-bold">{{ totals.confirmed }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100 shadow-sm"><div class="card-body">
+      <div class="text-muted">Риск отходов</div>
+      <div class="fs-3 fw-bold">{{ totals.waste_risk }}</div>
+      <div class="small text-muted">упрощённо: план − потребление</div>
+    </div></div>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-white">
+    <strong>План / прогноз / факт по дням</strong>
+  </div>
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>Дата</th>
+          <th>План</th>
+          <th>Прогноз</th>
+          <th>Выдано</th>
+          <th>Потреблено</th>
+          <th>Риск отходов</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          <tr>
+            <td>{{ r.date|date:"d.m" }}</td>
+            <td>{{ r.planned }}</td>
+            <td>{{ r.forecast }}</td>
+            <td>{{ r.issued }}</td>
+            <td>{{ r.confirmed }}</td>
+            <td><strong>{{ r.waste_risk }}</strong></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card h-100 shadow-sm">
+      <div class="card-header bg-white"><strong>Склад: зона риска</strong></div>
+      <div class="card-body">
+        {% if low_stock %}
+          <ul class="mb-0">
+            {% for p in low_stock %}
+              <li>{{ p.name }} — {{ p.stock }} {{ p.unit }} (минимум {{ p.min_stock }})</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-muted">Нет позиций ниже минимума.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100 shadow-sm">
+      <div class="card-header bg-white"><strong>Экологическая оценка</strong></div>
+      <div class="card-body">
+        <div class="mb-2">Закупки в работе: <strong>{{ pending_purchases }}</strong></div>
+        <div class="mb-2">Оценка CO₂e (демо): <strong>{{ co2_avoided }}</strong> кг</div>
+        <div class="small text-muted">
+          Это демонстрационная метрика для проекта: коэффициент можно заменить на справочные данные.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

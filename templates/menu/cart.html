@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+
+{% block title %}Корзина - EcoFood Platform{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="bi bi-cart3"></i> Ваша корзина</h4>
+            </div>
+            <div class="card-body">
+                {% if cart_items %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Блюдо</th>
+                                    <th>Цена</th>
+                                    <th>Количество</th>
+                                    <th>Сумма</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cart_item in cart_items %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="flex-shrink-0">
+                                                    {% if cart_item.item.image %}
+                                                        <img src="{{ cart_item.item.image.url }}" width="60" height="60" class="rounded" alt="{{ cart_item.item.name }}" style="object-fit: cover;">
+                                                    {% else %}
+                                                        <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                                            <i class="bi bi-egg-fried text-muted"></i>
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+
+                                                <div class="flex-grow-1 ms-3">
+                                                    <h6 class="mb-1">{{ cart_item.item.name }}</h6>
+                                                    <small class="text-muted">{{ cart_item.item.description|truncatewords:10 }}</small>
+
+                                                    {% if cart_item.item.allergens %}
+                                                        <div class="mt-1">
+                                                            {# ✅ показываем аллергены по-русски #}
+                                                            {% for a in cart_item.item.allergens.split %}
+                                                                {% for key, name in allergens %}
+                                                                    {% if key == a %}
+                                                                        <span class="badge bg-warning text-dark allergen-badge">{{ name }}</span>
+                                                                    {% endif %}
+                                                                {% endfor %}
+                                                            {% endfor %}
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        <td>{{ cart_item.price }} ₽</td>
+
+                                        <td>
+                                            {# ⚠️ update-cart у тебя не существует, поэтому просто показываем количество #}
+                                            <span class="badge bg-secondary">{{ cart_item.quantity }}</span>
+                                        </td>
+
+                                        <td><strong>{{ cart_item.subtotal }} ₽</strong></td>
+
+                                        <td>
+                                            {# ✅ удаление через правильный url #}
+                                            <a class="btn btn-sm btn-outline-danger"
+                                               href="{% url 'remove_from_cart' cart_item.item.id %}"
+                                               onclick="return confirm('Удалить товар из корзины?');">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-active">
+                                    <td colspan="3"><strong>Итого:</strong></td>
+                                    <td colspan="2"><strong>{{ total }} ₽</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-cart-x display-1 text-muted"></i>
+                        <h4 class="mt-3">Корзина пуста</h4>
+                        <p>Добавьте что-нибудь из меню</p>
+                        <a href="{% url 'menu_list' %}" class="btn btn-primary">
+                            <i class="bi bi-menu-button-wide"></i> Перейти в меню
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mt-4 mt-lg-0">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Оформление заказа</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <h6>Сумма заказа: {{ total }} ₽</h6>
+                    {% if user.is_authenticated %}
+                        <h6>Ваш баланс: {{ user.balance }} ₽</h6>
+
+                        {% if total > user.balance %}
+                            <div class="alert alert-warning mt-3">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                Недостаточно средств. Пополните баланс.
+                                <a href="{% url 'wallet' %}" class="alert-link">Пополнить</a>
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+
+                {% if cart_items %}
+                    {% if user.is_authenticated %}
+                        <form method="post" action="{% url 'checkout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success w-100 btn-lg"
+                                    {% if total > user.balance %}disabled{% endif %}>
+                                <i class="bi bi-check-circle"></i> Оформить заказ
+                            </button>
+                        </form>
+                    {% else %}
+                        <div class="alert alert-info">
+                            Для оформления заказа необходимо
+                            <a href="{% url 'login' %}" class="alert-link">войти в систему</a>
+                        </div>
+                    {% endif %}
+                {% endif %}
+
+                <a href="{% url 'menu_list' %}" class="btn btn-outline-primary w-100 mt-3">
+                    <i class="bi bi-arrow-left"></i> Продолжить покупки
+                </a>
+            </div>
+        </div>
+
+        <div class="card shadow mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">Информация о заказе</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <i class="bi bi-clock text-primary me-2"></i>
+                        <small>Заказы готовятся в течение 15-30 минут</small>
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-geo-alt text-primary me-2"></i>
+                        <small>Самовывоз из платформой</small>
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-credit-card text-primary me-2"></i>
+                        <small>Оплата только с внутреннего баланса</small>
+                    </li>
+                    <li>
+                        <i class="bi bi-arrow-clockwise text-primary me-2"></i>
+                        <small>Отмена заказа возможна в течение 5 минут</small>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

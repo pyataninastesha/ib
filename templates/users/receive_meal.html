@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% block title %}Получить питание{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-baseline justify-content-between flex-wrap gap-2 mb-3">
+  <div>
+    <h1 class="mb-1">Получить питание</h1>
+    <div class="text-muted">Сегодня: <strong>{{ today|date:"d.m.Y" }}</strong></div>
+  </div>
+  <a href="{% url 'subscription' %}" class="btn btn-outline-primary">
+    <i class="bi bi-ticket-perforated"></i> Абонементы
+  </a>
+</div>
+
+{% if not active_subs %}
+  <div class="alert alert-warning">
+    У вас нет активного абонемента на сегодня.
+    <a href="{% url 'subscription' %}" class="alert-link">Оформить абонемент</a>
+  </div>
+{% else %}
+  <div class="row g-3">
+    <!-- Завтрак -->
+    <div class="col-md-6">
+      <div class="card shadow-sm h-100 border-0">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h5 class="card-title mb-0">Завтрак</h5>
+            {% if has_breakfast_sub %}
+              <span class="badge bg-success-subtle text-success border">Абонемент активен</span>
+            {% else %}
+              <span class="badge bg-secondary-subtle text-secondary border">Нет абонемента</span>
+            {% endif %}
+          </div>
+
+          <p class="text-muted mb-3">Получение возможно только после выдачи поваром.</p>
+
+          {% if not has_breakfast_sub %}
+            <button class="btn btn-outline-secondary w-100" disabled>Нет абонемента на завтраки</button>
+          {% else %}
+            {% if got_breakfast %}
+              <button class="btn btn-success w-100" disabled>✅ Уже получено сегодня</button>
+            {% elif breakfast_req and breakfast_req.status == 'issued' %}
+              <form method="post" action="{% url 'confirm_meal' breakfast_req.id %}">
+                {% csrf_token %}
+                <button class="btn btn-success w-100">
+                  <i class="bi bi-check2-circle"></i> Подтвердить получение
+                </button>
+              </form>
+              <div class="text-muted small mt-2">
+                Выдано поваром: {{ breakfast_req.issued_at|date:"H:i" }}
+              </div>
+            {% else %}
+              <button class="btn btn-secondary w-100" disabled>
+                <i class="bi bi-hourglass-split"></i> Ожидает выдачи поваром
+              </button>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Обед -->
+    <div class="col-md-6">
+      <div class="card shadow-sm h-100 border-0">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h5 class="card-title mb-0">Обед</h5>
+            {% if has_lunch_sub %}
+              <span class="badge bg-success-subtle text-success border">Абонемент активен</span>
+            {% else %}
+              <span class="badge bg-secondary-subtle text-secondary border">Нет абонемента</span>
+            {% endif %}
+          </div>
+
+          <p class="text-muted mb-3">Получение возможно только после выдачи поваром.</p>
+
+          {% if not has_lunch_sub %}
+            <button class="btn btn-outline-secondary w-100" disabled>Нет абонемента на обеды</button>
+          {% else %}
+            {% if got_lunch %}
+              <button class="btn btn-success w-100" disabled>✅ Уже получено сегодня</button>
+            {% elif lunch_req and lunch_req.status == 'issued' %}
+              <form method="post" action="{% url 'confirm_meal' lunch_req.id %}">
+                {% csrf_token %}
+                <button class="btn btn-success w-100">
+                  <i class="bi bi-check2-circle"></i> Подтвердить получение
+                </button>
+              </form>
+              <div class="text-muted small mt-2">
+                Выдано поваром: {{ lunch_req.issued_at|date:"H:i" }}
+              </div>
+            {% else %}
+              <button class="btn btn-secondary w-100" disabled>
+                <i class="bi bi-hourglass-split"></i> Ожидает выдачи поваром
+              </button>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- История -->
+  <div class="card shadow-sm mt-4 border-0">
+    <div class="card-header bg-light d-flex align-items-center justify-content-between">
+      <h5 class="mb-0"><i class="bi bi-clock-history"></i> История получений питания</h5>
+      <small class="text-muted">Последние 30</small>
+    </div>
+
+    <div class="card-body">
+      {% if history %}
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Дата</th>
+                <th>Тип</th>
+                <th>Подтверждено</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in history %}
+                <tr>
+                  <td class="fw-semibold">{{ r.date|date:"d.m.Y" }}</td>
+                  <td>
+                    {% if r.meal_type == "breakfast" %}
+                      <span class="badge bg-primary-subtle text-primary border">Завтрак</span>
+                    {% elif r.meal_type == "lunch" %}
+                      <span class="badge bg-warning-subtle text-warning border">Обед</span>
+                    {% else %}
+                      <span class="badge bg-secondary-subtle text-secondary border">{{ r.meal_type }}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <span class="badge bg-success-subtle text-success border">Получено</span>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-muted text-center py-4">
+          Пока нет отметок о получении питания.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+{% endblock %}
