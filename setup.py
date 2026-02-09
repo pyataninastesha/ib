@@ -1,6 +1,7 @@
 import os
 import sys
 
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'stolovaia.settings')
 
 if __name__ == "__main__":
