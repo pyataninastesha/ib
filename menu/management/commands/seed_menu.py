@@ -4,25 +4,14 @@ from pathlib import Path
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from menu.models import Category, MenuItem
-
-
-CATEGORY_ORDER = {
-    "Закуски": 10,
-    "Основные блюда": 20,
-    "Напитки": 30,
-}
+from menu.models import Category, MenuItem, Product, MenuItemIngredient
 
 
 class Command(BaseCommand):
-    help = "Seed menu from menu/data/menu_seed.json (safe to run multiple times)."
+    help = "Seed menu from data/menu_seed.json (with ingredients)."
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            "--reset",
-            action="store_true",
-            help="Delete ALL menu items and categories before seeding.",
-        )
+        parser.add_argument("--reset", action="store_true", help="Clear menu before seeding")
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -30,69 +19,75 @@ class Command(BaseCommand):
         if not data_path.exists():
             raise CommandError(f"Seed file not found: {data_path}")
 
-        try:
-            data = json.loads(data_path.read_text(encoding="utf-8"))
-        except Exception as e:
-            raise CommandError(f"Failed to read/parse JSON: {e}")
+        data = json.loads(data_path.read_text(encoding="utf-8"))
 
         if options["reset"]:
+            MenuItemIngredient.objects.all().delete()
             MenuItem.objects.all().delete()
             Category.objects.all().delete()
-
-        created_categories = 0
-        created_items = 0
-        updated_items = 0
+            # продукты не трогаем (вдруг склад ведёшь)
 
         for category_name, items in data.items():
-            category, cat_created = Category.objects.get_or_create(
-                name=category_name,
-                defaults={
-                    "description": "",
-                    "order": CATEGORY_ORDER.get(category_name, 100),
-                },
-            )
-            if not cat_created:
-                # ensure nice ordering for main categories
-                desired_order = CATEGORY_ORDER.get(category_name)
-                if desired_order is not None and category.order != desired_order:
-                    category.order = desired_order
-                    category.save(update_fields=["order"])
-            else:
-                created_categories += 1
+            category, _ = Category.objects.get_or_create(name=category_name)
 
-            for item in items:
-                name = (item.get("name") or "").strip()
+            for item_data in items:
+                name = (item_data.get("name") or "").strip()
                 if not name:
                     continue
 
-                defaults = {
-                    "category": category,
-                    "price": item.get("price", 0),
-                    "description": item.get("description", "") or "",
-                    "allergens": (item.get("allergens") or "").strip(),
-                    "is_available": bool(item.get("is_available", True)),
-                    "calories": item.get("calories"),
-                }
+                item_obj, _ = MenuItem.objects.get_or_create(
+                    name=name,
+                    category=category,
+                    defaults={
+                        "price": item_data.get("price", 0),
+                        "description": item_data.get("description", "") or "",
+                        "calories": item_data.get("calories", None),
+                        "allergens": item_data.get("allergens", "") or "",
+                        "is_available": bool(item_data.get("is_available", True)),
+                        "is_active": bool(item_data.get("is_active", True)),
+                    },
+                )
 
-                obj, created = MenuItem.objects.get_or_create(name=name, defaults=defaults)
+                # если уже был — синхронизируем поля
+                item_obj.price = item_data.get("price", item_obj.price)
+                item_obj.description = item_data.get("description", item_obj.description) or ""
+                item_obj.calories = item_data.get("calories", item_obj.calories)
+                item_obj.allergens = item_data.get("allergens", item_obj.allergens) or ""
+                item_obj.is_available = bool(item_data.get("is_available", item_obj.is_available))
+                if hasattr(item_obj, "is_active"):
+                    item_obj.is_active = bool(item_data.get("is_active", getattr(item_obj, "is_active", True)))
+                item_obj.save()
 
-                if created:
-                    created_items += 1
-                    continue
+                # ----- IMPORTANT PART: ingredients -----
+                ingredients = item_data.get("ingredients") or []
+                keep_product_names = set()
 
-                # sync fields if changed
-                changed_fields = []
-                for field, value in defaults.items():
-                    if getattr(obj, field) != value:
-                        setattr(obj, field, value)
-                        changed_fields.append(field)
+                for ing in ingredients:
+                    product_name = (ing.get("product") or "").strip()
+                    if not product_name:
+                        continue
+                    amount = ing.get("amount", 0)
+                    unit = (ing.get("unit") or "г").strip()
 
-                if changed_fields:
-                    obj.save(update_fields=changed_fields)
-                    updated_items += 1
+                    keep_product_names.add(product_name)
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"seed_menu: categories +{created_categories}; items +{created_items}; updated {updated_items}."
-            )
-        )
+                    product_obj, _ = Product.objects.get_or_create(
+                        name=product_name,
+                        defaults={"unit": unit, "stock": 0, "min_stock": 0},
+                    )
+
+                    # если unit отличается и у продукта пусто/г — обновим
+                    if unit and getattr(product_obj, "unit", None) and product_obj.unit != unit and product_obj.unit in ("г", "", None):
+                        product_obj.unit = unit
+                        product_obj.save(update_fields=["unit"])
+
+                    MenuItemIngredient.objects.update_or_create(
+                        item=item_obj,                 # важно: поле обычно item
+                        product=product_obj,
+                        defaults={"amount": amount},
+                    )
+
+                # удалить лишние связи, которых нет в seed
+                MenuItemIngredient.objects.filter(item=item_obj).exclude(product__name__in=keep_product_names).delete()
+
+        self.stdout.write(self.style.SUCCESS("seed_menu done"))
