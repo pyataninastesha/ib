@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from menu.models import Product, MenuItemIngredient, DailyMenu
 
 def get_daily_items(date, meal_type):
@@ -48,12 +48,41 @@ def deduct_for_items(items):
 
 
 def has_recipe(item) -> bool:
-    """Есть ли рецепт (ингредиенты связаны с блюдом)"""
-    return MenuItemIngredient.objects.filter(item=item).exists()
+    # ВАЖНО: проверяем через related manager, чтобы не было несовпадений по модели/импорту
+    return item.ingredients.exists()
 
-def has_ingredients(item, portions=1):
+
+def has_ingredients(item, portions=1) -> bool:
     """
-    Для витрины/клиента: 'есть ингредиенты' = есть рецепт (связи ингредиентов).
-    НЕ проверяем склад, иначе у клиента всё станет 'нет в наличии', пока склад не заполнен.
+    Реальная проверка "в наличии":
+    - должен быть рецепт (ингредиенты)
+    - по каждому ингредиенту stock >= amount * portions
     """
-    return MenuItemIngredient.objects.filter(item=item).exists()
+    qs = item.ingredients.select_related("product").all()
+    if not qs.exists():
+        return False
+
+    try:
+        portions = Decimal(str(portions))
+    except (InvalidOperation, TypeError, ValueError):
+        portions = Decimal("1")
+
+    for ing in qs:
+        try:
+            need = Decimal(str(ing.amount)) * portions
+        except (InvalidOperation, TypeError, ValueError):
+            need = Decimal("0")
+
+        stock = ing.product.stock
+        if stock is None:
+            stock = Decimal("0")
+
+        try:
+            stock = Decimal(str(stock))
+        except (InvalidOperation, TypeError, ValueError):
+            stock = Decimal("0")
+
+        if stock < need:
+            return False
+
+    return True

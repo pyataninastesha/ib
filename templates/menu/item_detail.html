@@ -48,9 +48,10 @@
                             {% if item.calories %}
                                 <span class="badge bg-info">Калории: {{ item.calories }} ккал</span>
                             {% endif %}
-                            <span class="badge {% if item.is_available %}bg-success{% else %}bg-danger{% endif %}">
-                                {% if item.is_available %}В наличии{% else %}Нет в наличии{% endif %}
+                            <span class="badge {% if can_order %}bg-success{% else %}bg-danger{% endif %}">
+                                {% if can_order %}В наличии{% else %}Нет в наличии{% endif %}
                             </span>
+
                         </div>
                         
                         {% if item.allergens %}

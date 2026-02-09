@@ -1,5 +1,5 @@
 from django.utils import timezone
-from menu.models import Order, Product
+from menu.models import Order, Product, BanquetMenu
 from users.models import MealRequest, Subscription
 from core.models import PurchaseRequest
 from django.db.models import F
@@ -69,11 +69,10 @@ def nav_badges(request):
         qs = PurchaseRequest.objects.filter(status="new")
         badges["admin_purchase"] = qs.filter(created_at__gt=seen_dt).count() if seen_dt else qs.count()
 
-        seen_dt = _get_seen_dt(request, "admin_subscriptions")
-        qs = Subscription.objects.all()
-        badges["admin_subscriptions"] = qs.filter(created_at__gt=seen_dt).count() if seen_dt else qs.filter(created_at__date=today).count()
+        seen_dt = _get_seen_dt(request, "admin_banquet_menus")
+        qs = BanquetMenu.objects.filter(status=BanquetMenu.STATUS_PENDING)
+        badges["admin_banquet_menus"] = qs.filter(created_at__gt=seen_dt).count() if seen_dt else qs.count()
 
-        # отчёты — суммарно как "новые события"
-        badges["admin_reports"] = (badges.get("admin_purchase", 0) + badges.get("admin_subscriptions", 0))
+        badges["admin_reports"] = (badges.get("admin_purchase", 0) + badges.get("admin_banquet_menus", 0))
 
     return {"nav_badges": badges}

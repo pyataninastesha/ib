@@ -80,7 +80,7 @@ def menu_list(request):
 
     items = MenuItem.objects.filter(is_available=True)
     for item in items:
-        item.client_available = item.is_available and has_recipe(item) and has_ingredients(item, portions=1)
+        item.client_available = item.is_available and has_ingredients(item, portions=1)
 
     # исключаем блюда с выбранными аллергенами
     for a in selected_allergens:
@@ -120,7 +120,7 @@ def item_detail(request, item_id):
     avg_rating = reviews.aggregate(avg=Avg('rating'))['avg'] or 0
 
     form = ReviewForm()
-    can_order = has_ingredients(item)
+    can_order = item.is_available and has_ingredients(item, portions=1)
     return render(request, 'menu/item_detail.html', {
         'item': item,
         'reviews': reviews,

@@ -135,7 +135,7 @@
                                 Карточка
                             </a>
 
-                            {# ✅ FIX: вместо not_available_ids используем item.client_available #}
+                            {# ✅ НАЛИЧИЕ: используем item.client_available (а не is_available и не not_available_ids) #}
                             {% if item.client_available %}
                                 <div class="d-flex align-items-center gap-2 cart-controls" data-item-id="{{ item.id }}">
                                     <button type="button" class="btn btn-sm btn-outline-secondary cart-minus" title="Уменьшить">

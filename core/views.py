@@ -431,88 +431,8 @@ def admin_purchase(request):
 
 
 @login_required
-@_role_required('admin')
-def admin_subscriptions(request):
-    mark_nav_seen(request, "admin_subscriptions")
-    # контроль абонементов и фактов получения.
-    date_str = (request.GET.get("date") or "").strip()
-    if date_str:
-        try:
-            day = timezone.datetime.fromisoformat(date_str).date()
-        except ValueError:
-            day = timezone.localdate()
-            messages.warning(request, "Некорректная дата. Показан сегодняшний день.")
-    else:
-        day = timezone.localdate()
-
-    subs = (
-        Subscription.objects
-        .select_related("user")
-        .filter(start_date__lte=day, end_date__gte=day)
-        .order_by("user__username", "plan")
-    )
-
-    subs_by_user = {}
-    for s in subs:
-        uid = s.user_id
-        if uid not in subs_by_user:
-            subs_by_user[uid] = {"user": s.user, "breakfast": False, "lunch": False}
-        if s.plan == Subscription.PLAN_BREAKFAST:
-            subs_by_user[uid]["breakfast"] = True
-        if s.plan == Subscription.PLAN_LUNCH:
-            subs_by_user[uid]["lunch"] = True
-
-    req_map = {
-        (r.user_id, r.meal_type): r
-        for r in MealRequest.objects.filter(date=day).select_related("user")
-    }
-
-    confirmed_set = set(
-        MealReceipt.objects.filter(date=day).values_list("user_id", "meal_type")
-    )
-
-    rows = []
-    for uid, row in subs_by_user.items():
-        user = row["user"]
-
-        def cell(meal_type: str):
-            if not row.get(meal_type):
-                return {"state": "no_sub"}
-            if (uid, meal_type) in confirmed_set:
-                return {"state": "confirmed"}
-            mr = req_map.get((uid, meal_type))
-            if not mr:
-                return {"state": "none"}
-            return {"state": mr.status, "mr": mr}
-
-        rows.append({
-            "user": user,
-            "breakfast": cell("breakfast"),
-            "lunch": cell("lunch"),
-        })
-
-    total_active_users = len(rows)
-    total_active_meals = sum(
-        (1 if r["breakfast"]["state"] != "no_sub" else 0) +
-        (1 if r["lunch"]["state"] != "no_sub" else 0)
-        for r in rows
-    )
-
-    return render(request, "core/admin_subscriptions.html", {
-        "day": day,
-        "rows": rows,
-        "total_active_users": total_active_users,
-        "total_active_meals": total_active_meals,
-    })
-
-
-@login_required
 @_role_required('cook')
 def cook_daily_menu(request):
-    """Оставлено для обратной совместимости.
-
-    В версии "кейтеринг" вместо меню дня используется конструктор банкетных меню.
-    """
     return redirect('cook_banquet_menus')
 
 

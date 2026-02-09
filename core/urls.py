@@ -14,7 +14,6 @@ urlpatterns = [
     path('admin/', views.admin_dashboard, name='admin_dashboard'),
     path('admin/reports/', views.admin_reports, name='admin_reports'),
     path('admin/purchase/', views.admin_purchase, name='admin_purchase'),
-    path('admin/subscriptions/', views.admin_subscriptions, name='admin_subscriptions'),
     path('admin/banquet-menus/', views.admin_banquet_menus, name='admin_banquet_menus'),
 
 ]
