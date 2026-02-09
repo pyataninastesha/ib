@@ -1,7 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from .models import User
-from core.models import Organization
 from menu.models import MenuItem
 
 
@@ -15,102 +14,102 @@ class CustomUserCreationForm(UserCreationForm):
         label='Роль'
     )
 
-    org_action = forms.ChoiceField(
-        choices=(('create', 'Создать организацию (для Eco-менеджера)'), ('join', 'Присоединиться по коду')),
-        required=True,
-        label='Организация',
-        widget=forms.Select
-    )
-    org_name = forms.CharField(max_length=200, required=False, label='Название организации')
-    org_type = forms.ChoiceField(choices=Organization.ORG_TYPES, required=False, label='Тип заведения')
-    org_goals = forms.CharField(max_length=250, required=False, label='Цели (через запятую)')
-    avg_portions_per_day = forms.IntegerField(required=False, min_value=0, label='Среднее порций в день')
-    join_code = forms.CharField(max_length=12, required=False, label='Код подключения')
-
     class Meta:
         model = User
         fields = ('username', 'email', 'phone', 'role', 'password1', 'password2')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Bootstrap styling
+
+        # Bootstrap styling for all fields
         for field in self.fields.values():
             existing = field.widget.attrs.get('class', '')
             field.widget.attrs['class'] = (existing + ' form-control').strip()
 
+        # role is select - keep bootstrap but don't force password type
         if 'role' in self.fields:
             self.fields['role'].widget.attrs.update({'class': 'form-select'})
-        if 'org_action' in self.fields:
-            self.fields['org_action'].widget.attrs.update({'class': 'form-select'})
-        if 'org_type' in self.fields:
-            self.fields['org_type'].widget.attrs.update({'class': 'form-select'})
 
-    def clean(self):
-        cleaned = super().clean()
-        role = cleaned.get('role')
-        org_action = cleaned.get('org_action')
+        # IMPORTANT: ensure correct input types for password toggling
+        self.fields['password1'].widget.input_type = 'password'
+        self.fields['password2'].widget.input_type = 'password'
 
-        # Eco-менеджер создаёт организацию
-        if role == 'admin':
-            cleaned['org_action'] = 'create'
-            if not cleaned.get('org_name'):
-                self.add_error('org_name', 'Укажите название организации')
-            if not cleaned.get('org_type'):
-                self.add_error('org_type', 'Выберите тип заведения')
-        else:
-            # остальные присоединяются по коду
-            cleaned['org_action'] = 'join'
-            if not cleaned.get('join_code'):
-                self.add_error('join_code', 'Введите код подключения от вашей организации')
+        # Small UX tweaks
+        self.fields['username'].widget.attrs.setdefault('autocomplete', 'username')
+        self.fields['email'].widget.attrs.setdefault('autocomplete', 'email')
+        self.fields['phone'].widget.attrs.setdefault('autocomplete', 'tel')
+        self.fields['password1'].widget.attrs.setdefault('autocomplete', 'new-password')
+        self.fields['password2'].widget.attrs.setdefault('autocomplete', 'new-password')
 
-        return cleaned
-
-    def save(self, commit=True):
-        user = super().save(commit=False)
-        role = self.cleaned_data.get('role')
-        organization = None
-
-        if role == 'admin':
-            # создать организацию и сгенерировать код подключения
-            join_code = Organization.generate_join_code()
-            organization = Organization.objects.create(
-                name=self.cleaned_data.get('org_name') or 'Организация',
-                org_type=self.cleaned_data.get('org_type') or 'other',
-                goals=self.cleaned_data.get('org_goals') or '',
-                avg_portions_per_day=self.cleaned_data.get('avg_portions_per_day') or 0,
-                join_code=join_code,
-            )
-        else:
-            code = (self.cleaned_data.get('join_code') or '').strip().upper()
-            organization = Organization.objects.filter(join_code=code).first()
-
-        user.organization = organization
-        user.role = role
-
-        if commit:
-            user.save()
-        return user
 
 
 class CustomAuthenticationForm(AuthenticationForm):
-    """Login form with consistent styling."""
+    username = forms.CharField(label='Имя пользователя или Email')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         for field in self.fields.values():
             existing = field.widget.attrs.get('class', '')
             field.widget.attrs['class'] = (existing + ' form-control').strip()
+
+        # IMPORTANT: ensure correct input type for password toggling on login form
+        if 'password' in self.fields:
+            self.fields['password'].widget.input_type = 'password'
+            self.fields['password'].widget.attrs.setdefault('autocomplete', 'current-password')
 
 
 class ProfileUpdateForm(forms.ModelForm):
-    """User profile update (safe editable fields only)."""
+    avoid_allergens = forms.MultipleChoiceField(
+        choices=MenuItem.ALLERGENS,
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label='Какие аллергены исключить'
+    )
 
     class Meta:
         model = User
-        fields = ('email', 'phone')
+        fields = ('email', 'phone', 'allergies', 'avoid_allergens', 'food_preferences', 'first_name', 'last_name')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         for field in self.fields.values():
             existing = field.widget.attrs.get('class', '')
             field.widget.attrs['class'] = (existing + ' form-control').strip()
+
+        # чекбоксы не должны получать form-control
+        self.fields['avoid_allergens'].widget.attrs.pop('class', None)
+
+        if 'allergies' in self.fields:
+            self.fields['allergies'].widget.attrs.update({
+                'rows': 3,
+                'style': 'resize: vertical;'
+            })
+
+        if 'food_preferences' in self.fields:
+            self.fields['food_preferences'].widget.attrs.update({
+                'rows': 3,
+                'style': 'resize: vertical;'
+            })
+
+        # начальное значение из модели (csv)
+        if self.instance and self.instance.pk:
+            current = (self.instance.avoid_allergens or '').split(',')
+            current = [c.strip() for c in current if c.strip()]
+            self.initial['avoid_allergens'] = current
+
+        role = getattr(self.instance, 'role', 'student')
+        if role != 'student':
+            for f in ('allergies', 'avoid_allergens', 'food_preferences'):
+                if f in self.fields:
+                    self.fields.pop(f)
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        if 'avoid_allergens' in self.cleaned_data:
+            avoid = self.cleaned_data.get('avoid_allergens', []) or []
+            user.avoid_allergens = ','.join(avoid)
+        if commit:
+            user.save()
+        return user

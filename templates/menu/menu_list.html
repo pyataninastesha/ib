@@ -1,39 +1,19 @@
 {% extends 'base.html' %}
-{% block title %}Меню{% endblock %}
+{% block title %}Меню кейтеринга{% endblock %}
 
 {% block content %}
 
-<h1 class="mb-3">Каталог блюд / планирование</h1>
-
-<ul class="nav nav-pills mb-4">
-    <li class="nav-item">
-        <a class="nav-link {% if meal == 'all' %}active{% endif %}"
-           href="?meal=all{% for a in selected_allergens %}&allergen={{ a }}{% endfor %}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">
-            Все
-        </a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link {% if meal == 'breakfast' %}active{% endif %}"
-           href="?meal=breakfast{% for a in selected_allergens %}&allergen={{ a }}{% endfor %}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">
-            Завтраки
-        </a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link {% if meal == 'lunch' %}active{% endif %}"
-           href="?meal=lunch{% for a in selected_allergens %}&allergen={{ a }}{% endfor %}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">
-            Обеды
-        </a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link {% if meal == 'drinks' %}active{% endif %}"
-           href="?meal=drinks{% for a in selected_allergens %}&allergen={{ a }}{% endfor %}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">
-            Напитки
-        </a>
-    </li>
-</ul>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+  <div>
+    <h1 class="mb-0">Праздничное меню</h1>
+    <div class="text-muted">Выбирайте блюда и собирайте наборы для банкета.</div>
+  </div>
+  {% if user.is_authenticated and user.role == 'student' %}
+    <a class="btn btn-primary" href="{% url 'banquets' %}"><i class="bi bi-stars"></i> Выбрать банкет</a>
+  {% endif %}
+</div>
 
 <form method="get" class="mb-3 d-flex">
-    <input type="hidden" name="meal" value="all">
     {% for a in selected_allergens %}
         <input type="hidden" name="allergen" value="{{ a }}">
     {% endfor %}
@@ -51,7 +31,6 @@
         <h5 class="mb-3">Фильтр аллергенов</h5>
 
         <form method="get">
-            <input type="hidden" name="meal" value="{{ meal }}">
             <input type="hidden" name="allergen_filter" value="1">
             {% if search_query %}
                 <input type="hidden" name="search" value="{{ search_query }}">
@@ -78,82 +57,13 @@
             <div class="mt-3 d-flex gap-2">
                 <button class="btn btn-primary btn-sm" type="submit">Применить</button>
                 <a class="btn btn-outline-secondary btn-sm"
-                   href="?meal={{ meal }}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">
+                   href="?{% if search_query %}search={{ search_query|urlencode }}{% endif %}">
                     Сбросить
                 </a>
             </div>
         </form>
     </div>
 </div>
-
-{% if daily_menu %}
-  <div class="card mb-4">
-    <div class="card-body">
-      <h4 class="mb-2">Меню дня ({{ today|date:"d.m.Y" }})</h4>
-
-      <div class="row">
-        <div class="col-md-6">
-          <h5>Комплексный завтрак</h5>
-          {% if daily_menu.breakfast_items.all %}
-            <ul class="mb-0">
-              {% for item in daily_menu.breakfast_items.all %}
-                <li>
-                  <b>{{ item.name }}</b>
-                  <div class="text-muted small">
-                    Ингредиенты:
-                    {% for ing in item.ingredients.all %}
-                      {{ ing.product.name }}{% if not forloop.last %}, {% endif %}
-                    {% endfor %}
-                  </div>
-
-                  {% if user.is_authenticated and user.role == "cook" %}
-                    <div class="small mt-1">
-                      <b>Рецепт:</b> {{ item.description|linebreaksbr }}
-                    </div>
-                  {% endif %}
-                </li>
-              {% endfor %}
-            </ul>
-          {% else %}
-            <div class="text-muted">Не задан.</div>
-          {% endif %}
-        </div>
-
-        <div class="col-md-6">
-          <h5>Комплексный обед</h5>
-          {% if daily_menu.lunch_items.all %}
-            <ul class="mb-0">
-              {% for item in daily_menu.lunch_items.all %}
-                <li>
-                  <b>{{ item.name }}</b>
-                  <div class="text-muted small">
-                    Ингредиенты:
-                    {% for ing in item.ingredients.all %}
-                      {{ ing.product.name }}{% if not forloop.last %}, {% endif %}
-                    {% endfor %}
-                  </div>
-
-                  {% if user.is_authenticated and user.role == "cook" %}
-                    <div class="small mt-1">
-                      <b>Рецепт:</b> {{ item.description|linebreaksbr }}
-                    </div>
-                  {% endif %}
-                </li>
-              {% endfor %}
-            </ul>
-          {% else %}
-            <div class="text-muted">Не задан.</div>
-          {% endif %}
-        </div>
-      </div>
-
-    </div>
-  </div>
-{% else %}
-  <div class="alert alert-warning mb-4">
-    Меню дня на сегодня не задано.
-  </div>
-{% endif %}
 
 
 {% for category, items in categories_with_items %}
@@ -216,12 +126,10 @@
 
     {% if user.is_authenticated and user.role == 'student' %}
 
-    {# ✅ 1) Карточка блюда всегда доступна #}
     <a href="{% url 'item_detail' item.id %}" class="btn btn-sm btn-outline-primary">
         Карточка
     </a>
 
-    {# ✅ 2) Корзина только если блюдо в наличии #}
     {% if item.id not in not_available_ids %}
         <div class="d-flex align-items-center gap-2 cart-controls" data-item-id="{{ item.id }}">
             <button type="button" class="btn btn-sm btn-outline-secondary cart-minus" title="Уменьшить">

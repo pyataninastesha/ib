@@ -1,13 +1,51 @@
+/* Праздничная розовая тема */
 .app-body {
-    background: #f6f8fb;
     min-height: 100vh;
+    background: radial-gradient(1200px 600px at 10% 0%, rgba(255, 105, 180, 0.18), transparent 60%),
+                radial-gradient(900px 500px at 90% 10%, rgba(255, 20, 147, 0.12), transparent 55%),
+                linear-gradient(180deg, #fff5fb 0%, #fff 55%, #fff5fb 100%);
 }
 
 .app-surface {
     background: #fff;
     border-radius: 16px;
     padding: 1.25rem;
-    border: 1px solid rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(255, 105, 180, 0.18);
+}
+
+.navbar.bg-primary {
+    background: linear-gradient(90deg, #ff4fa6 0%, #ff2b86 40%, #ff73c0 100%) !important;
+}
+
+.btn-primary {
+    --bs-btn-bg: #ff2b86;
+    --bs-btn-border-color: #ff2b86;
+    --bs-btn-hover-bg: #ff4fa6;
+    --bs-btn-hover-border-color: #ff4fa6;
+    --bs-btn-active-bg: #e61f77;
+    --bs-btn-active-border-color: #e61f77;
+}
+
+.btn-outline-primary {
+    --bs-btn-color: #ff2b86;
+    --bs-btn-border-color: #ff2b86;
+    --bs-btn-hover-bg: #ff2b86;
+    --bs-btn-hover-border-color: #ff2b86;
+}
+
+.alert {
+    border-radius: 14px;
+    border: 1px solid rgba(255, 105, 180, 0.22);
+}
+
+.card {
+    border-radius: 18px;
+    border: 1px solid rgba(255, 105, 180, 0.18);
+}
+
+.card-img-top {
+    border-top-left-radius: 18px;
+    border-top-right-radius: 18px;
 }
 
 .nav-badge {
@@ -29,6 +67,6 @@
 
 .app-footer {
     margin-top: 2rem;
-    border-top: 1px solid rgba(0,0,0,.06);
-    background: #fff;
+    border-top: 1px solid rgba(255, 105, 180, 0.18);
+    background: rgba(255, 255, 255, 0.9);
 }

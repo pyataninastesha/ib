@@ -29,7 +29,6 @@ class MenuModelTests(TestCase):
         )
 
     def test_category_creation(self):
-        """Тест создания категории"""
         self.assertEqual(self.category.name, 'Основные блюда')
         self.assertEqual(str(self.category), 'Основные блюда')
 
@@ -41,7 +40,6 @@ class MenuModelTests(TestCase):
         self.assertEqual(str(self.item), 'Плов')
 
     def test_review_creation(self):
-        """Тест создания отзыва"""
         review = Review.objects.create(
             user=self.user,
             item=self.item,
@@ -84,26 +82,22 @@ class MenuViewsTests(TestCase):
         )
 
     def test_menu_list_view(self):
-        """Тест страницы меню"""
         response = self.client.get(reverse('menu_list'))
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'menu/menu_list.html')
         self.assertContains(response, 'Меню столовой')
 
     def test_item_detail_view(self):
-        """Тест страницы деталей блюда"""
         response = self.client.get(reverse('item_detail', args=[self.item.id]))
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'menu/item_detail.html')
         self.assertContains(response, 'Плов')
 
     def test_add_to_cart_requires_login(self):
-        """Тест что добавление в корзину требует авторизации"""
         response = self.client.get(reverse('add_to_cart', args=[self.item.id]))
         self.assertRedirects(response, f'{reverse("login")}?next={reverse("add_to_cart", args=[self.item.id])}')
 
     def test_add_to_cart_with_login(self):
-        """Тест добавления в корзину с авторизацией"""
         self.client.login(username='testuser', password='testpass123')
         response = self.client.get(reverse('add_to_cart', args=[self.item.id]))
         # Должен быть редирект на список меню

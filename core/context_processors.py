@@ -1,75 +1,79 @@
 from django.utils import timezone
-
 from menu.models import Order, Product
 from users.models import MealRequest, Subscription
 from core.models import PurchaseRequest
+from django.db.models import F
+
+from datetime import datetime
+
+
+def _get_seen_dt(request, key: str):
+    seen = request.session.get("nav_seen", {})
+    s = seen.get(key)
+    if not s:
+        return None
+    try:
+        dt = datetime.fromisoformat(s)
+        if timezone.is_naive(dt):
+            dt = timezone.make_aware(dt, timezone.get_current_timezone())
+        return dt
+    except Exception:
+        return None
 
 
 def nav_badges(request):
-    """
-    Бейджи для вкладок в верхнем меню.
-    Логика: показываем количество элементов, которые требуют внимания пользователя.
-    """
     if not getattr(request, "user", None) or not request.user.is_authenticated:
         return {"nav_badges": {}}
 
     user = request.user
     today = timezone.localdate()
     badges = {}
-
     role = getattr(user, "role", "student")
 
-    if role == "student":
-        # 1) "Мои заказы" — сколько заказов готово к выдаче и ещё не получено учеником
-        badges["order_history"] = Order.objects.filter(
-            user=user,
-            status="ready",
-            received_by_student=False
-        ).count()
+    # отдельно для "склада"
+    seen_counts = request.session.get("nav_seen_counts", {})
 
-        # 2) "Получить питание" — сколько приемов пищи выдано поваром и ждёт подтверждения ученика
-        badges["receive_meal"] = MealRequest.objects.filter(
-            user=user,
-            date=today,
-            status=MealRequest.STATUS_ISSUED
-        ).count()
+    if role == "student":
+        seen_dt = _get_seen_dt(request, "order_history")
+        qs = Order.objects.filter(user=user, status="ready", received_by_student=False)
+        badges["order_history"] = qs.filter(updated_at__gt=seen_dt).count() if seen_dt else qs.count()
+
+        seen_dt = _get_seen_dt(request, "receive_meal")
+        qs = MealRequest.objects.filter(user=user, date=today, status=MealRequest.STATUS_ISSUED)
+        badges["receive_meal"] = qs.filter(issued_at__gt=seen_dt).count() if seen_dt else qs.count()
 
     elif role == "cook":
-        # 1) "Выдача питания" — (а) заказы, которые надо обработать + (б) заявки на питание, которые надо выдать
-        orders_to_process = Order.objects.filter(
-            status__in=["pending", "confirmed", "preparing"]
-        ).count()
+        seen_dt = _get_seen_dt(request, "cook_issue")
+        orders = Order.objects.filter(status__in=["pending", "confirmed", "preparing"])
+        meals = MealRequest.objects.filter(date=today, status=MealRequest.STATUS_REQUESTED)
 
-        meals_to_issue = MealRequest.objects.filter(
-            date=today,
-            status=MealRequest.STATUS_REQUESTED
-        ).count()
+        if seen_dt:
+            badges["cook_issue"] = (
+                orders.filter(updated_at__gt=seen_dt).count() +
+                meals.filter(requested_at__gt=seen_dt).count()
+            )
+        else:
+            badges["cook_issue"] = orders.count() + meals.count()
 
-        badges["cook_issue"] = orders_to_process + meals_to_issue
+        # Склад: подсветка "что изменилось" — сравниваем количество проблемных позиций
+        low_now = Product.objects.filter(stock__lt=F("min_stock")).count()
+        low_seen = seen_counts.get("stock_list")
+        badges["stock_list"] = low_now if low_seen is None or low_now != low_seen else 0
 
-        # 2) "Склад" — позиции, где остаток ниже/равен минимальному
-        badges["stock_list"] = Product.objects.filter(stock__lte=models.F("min_stock")).count() if False else 0
-        # ↑ нельзя использовать models.F без импорта, поэтому ниже нормальный вариант:
-        try:
-            from django.db.models import F
-            badges["stock_list"] = Product.objects.filter(stock__lte=F("min_stock")).count()
-        except Exception:
-            badges["stock_list"] = 0
-
-        # 3) "Заявка на закупку" — мои заявки, которые ещё не "Закуплено"
-        badges["cook_purchase"] = PurchaseRequest.objects.filter(
-            created_by=user,
-            status__in=["new", "in_progress"]
-        ).count()
+        seen_dt = _get_seen_dt(request, "cook_purchase")
+        qs = PurchaseRequest.objects.filter(created_by=user, status__in=["new", "in_progress"])
+        badges["cook_purchase"] = qs.filter(created_at__gt=seen_dt).count() if seen_dt else qs.count()
 
     elif role == "admin":
-        # 1) "Закупки" — новые заявки (требуют обработки)
-        badges["admin_purchase"] = PurchaseRequest.objects.filter(status="new").count()
+        seen_dt = _get_seen_dt(request, "admin_purchase")
+        qs = PurchaseRequest.objects.filter(status="new")
+        badges["admin_purchase"] = qs.filter(created_at__gt=seen_dt).count() if seen_dt else qs.count()
 
-        # 2) "Абонементы" — абонементы, созданные сегодня (как “изменения”)
-        badges["admin_subscriptions"] = Subscription.objects.filter(created_at__date=today).count()
+        seen_dt = _get_seen_dt(request, "admin_subscriptions")
+        qs = Subscription.objects.all()
+        badges["admin_subscriptions"] = qs.filter(created_at__gt=seen_dt).count() if seen_dt else qs.filter(created_at__date=today).count()
 
-        # 3) "Отчеты" — суммарный индикатор изменений
-        badges["admin_reports"] = badges["admin_purchase"] + badges["admin_subscriptions"]
+        # отчёты — суммарно как "новые события"
+        badges["admin_reports"] = (badges.get("admin_purchase", 0) + badges.get("admin_subscriptions", 0))
 
     return {"nav_badges": badges}

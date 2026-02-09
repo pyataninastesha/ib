@@ -7,7 +7,6 @@ urlpatterns = [
 
     path('add-to-cart/<int:item_id>/', views.add_to_cart, name='add_to_cart'),
 
-    # ✅ increase/decrease вместо -1/+1
     path('update-cart/<int:item_id>/increase/', views.cart_increase, name='cart_increase'),
     path('update-cart/<int:item_id>/decrease/', views.cart_decrease, name='cart_decrease'),
 

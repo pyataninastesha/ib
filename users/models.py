@@ -12,9 +12,9 @@ def _today():
 
 class User(AbstractUser):
     ROLE_CHOICES = (
-        ('student', 'Участник'),
-        ('cook', 'Производство'),
-        ('admin', 'Eco-менеджер'),
+        ('student', 'Ученик'),
+        ('cook', 'Повар'),
+        ('admin', 'Администратор'),
     )
 
     role = models.CharField(
@@ -27,8 +27,6 @@ class User(AbstractUser):
     phone = models.CharField(max_length=15, blank=True, verbose_name='Телефон')
     balance = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Баланс')
     allergies = models.TextField(blank=True, verbose_name='Аллергии')
-
-    organization = models.ForeignKey('core.Organization', on_delete=models.SET_NULL, null=True, blank=True, related_name='users', verbose_name='Организация')
 
     # коды аллергенов из menu.MenuItem.ALLERGENS через запятую
     avoid_allergens = models.CharField(
@@ -79,12 +77,11 @@ class Subscription(models.Model):
     PLAN_LUNCH = 'lunch'
 
     PLAN_CHOICES = [
-        (PLAN_BREAKFAST, 'Утро'),
-        (PLAN_LUNCH, 'День'),
+        (PLAN_BREAKFAST, 'Завтраки'),
+        (PLAN_LUNCH, 'Обеды'),
     ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='subscriptions')
-    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, null=True, blank=True, related_name='subscriptions', verbose_name='Организация')
     plan = models.CharField(max_length=20, choices=PLAN_CHOICES)
     start_date = models.DateField()
     end_date = models.DateField()
@@ -107,12 +104,11 @@ class MealReceipt(models.Model):
     MEAL_LUNCH = 'lunch'
 
     MEAL_CHOICES = [
-        (MEAL_BREAKFAST, 'Утро'),
-        (MEAL_LUNCH, 'День'),
+        (MEAL_BREAKFAST, 'Завтрак'),
+        (MEAL_LUNCH, 'Обед'),
     ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='meal_receipts')
-    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, null=True, blank=True, related_name='meal_receipts', verbose_name='Организация')
     date = models.DateField()
     meal_type = models.CharField(max_length=20, choices=MEAL_CHOICES)
     issued_by = models.ForeignKey(
@@ -133,20 +129,19 @@ class MealReceipt(models.Model):
 
 
 class MealRequest(models.Model):
-    STATUS_REQUESTED = 'requested'   # участник нажал "Запросить"
+    STATUS_REQUESTED = 'requested'   # ученик нажал "Запросить"
     STATUS_ISSUED = 'issued'         # повар выдал
-    STATUS_CONFIRMED = 'confirmed'   # участник подтвердил
-    STATUS_CANCELLED = 'cancelled'   # участник отменил заявку (если передумал)
+    STATUS_CONFIRMED = 'confirmed'   # ученик подтвердил
+    STATUS_CANCELLED = 'cancelled'   # ученик отменил заявку (если передумал)
 
     STATUS_CHOICES = [
         (STATUS_REQUESTED, 'Запрошено'),
         (STATUS_ISSUED, 'Выдано поваром'),
-        (STATUS_CONFIRMED, 'Подтверждено участником'),
+        (STATUS_CONFIRMED, 'Подтверждено учеником'),
         (STATUS_CANCELLED, 'Отменено'),
     ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='meal_requests')
-    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, null=True, blank=True, related_name='meal_requests', verbose_name='Организация')
     date = models.DateField()
     meal_type = models.CharField(max_length=20, choices=MealReceipt.MEAL_CHOICES)
 

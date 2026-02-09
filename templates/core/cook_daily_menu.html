@@ -16,26 +16,6 @@
 <form method="post" class="card p-3 mb-4">
   {% csrf_token %}
 
-  <div class="row mb-3">
-    <div class="col-md-6">
-      <label class="form-label">План порций (утро)</label>
-      <input type="number" name="planned_breakfast_portions" class="form-control" min="0" value="{{ daily_menu.planned_breakfast_portions|default:0 }}">
-    </div>
-    <div class="col-md-6">
-      <label class="form-label">План порций (день)</label>
-      <input type="number" name="planned_lunch_portions" class="form-control" min="0" value="{{ daily_menu.planned_lunch_portions|default:0 }}">
-    </div>
-  </div>
-
-  <div class="alert alert-info py-2">
-    <div><strong>Рекомендация (не сохраняет):</strong></div>
-    <div>Утро: {{ b_suggest_preview }} (прогноз {{ b_inputs_preview.forecast }}, история {{ b_inputs_preview.history_avg }}, отходы {{ b_inputs_preview.waste_avg }})</div>
-    <div>День: {{ l_suggest_preview }} (прогноз {{ l_inputs_preview.forecast }}, история {{ l_inputs_preview.history_avg }}, отходы {{ l_inputs_preview.waste_avg }})</div>
-    <button class="btn btn-outline-primary btn-sm mt-2" name="action" value="auto_plan" type="submit">
-      Рассчитать план порций
-    </button>
-  </div>
-
   {# Если form.date есть — показываем, но можно и скрыть/убрать #}
   {% if form.date %}
     <div class="mb-3">

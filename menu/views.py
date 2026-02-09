@@ -9,6 +9,7 @@ from decimal import Decimal, InvalidOperation
 from django.http import HttpResponseForbidden
 from django.db import transaction
 from core.models import PurchaseRequest
+from core.views import mark_nav_seen
 from .models import Product, MenuItemIngredient
 from django.utils import timezone
 from .models import DailyMenu
@@ -28,17 +29,21 @@ def ensure_default_menu():
     if MenuItem.objects.filter(name=marker_name).exists():
         return
 
-    cat_breakfast, _ = Category.objects.get_or_create(
-        name='Завтраки',
-        defaults={'description': '', 'order': 1}
+    cat_main, _ = Category.objects.get_or_create(
+        name='Основные блюда',
+        defaults={'description': 'Горячие блюда и основные позиции.', 'order': 1}
     )
-    cat_lunch, _ = Category.objects.get_or_create(
-        name='Обеды',
-        defaults={'description': '', 'order': 2}
+    cat_snacks, _ = Category.objects.get_or_create(
+        name='Закуски',
+        defaults={'description': 'Салаты и лёгкие закуски.', 'order': 2}
     )
-    Category.objects.get_or_create(
+    cat_desserts, _ = Category.objects.get_or_create(
+        name='Десерты',
+        defaults={'description': 'Сладкое к празднику.', 'order': 3}
+    )
+    cat_drinks, _ = Category.objects.get_or_create(
         name='Напитки',
-        defaults={'description': '', 'order': 3}
+        defaults={'description': 'Напитки и компоты.', 'order': 4}
     )
 
     def upsert(name, description, price, category, allergens=''):
@@ -52,17 +57,16 @@ def ensure_default_menu():
                 'is_available': True,
             }
         )
-
-    # (оставляю как у тебя — если ты уже наполнила блюда, этот блок просто не перезапишет)
-    upsert('Борщ', 'Состав: свёкла, капуста, картофель.', 120, cat_lunch, 'tomato')
-    upsert('Овсянка на молоке', 'Состав: овсянка, молоко.', 60, cat_breakfast, 'lactose')
+    upsert('Борщ', 'Состав: свёкла, капуста, картофель.', 120, cat_main, 'tomato')
+    upsert('Салат Оливье', 'Классический салат для праздника.', 90, cat_snacks, 'eggs')
+    upsert('Наполеон', 'Слоёный десерт с кремом.', 110, cat_desserts, 'lactose gluten')
+    upsert('Морс', 'Домашний ягодный морс.', 50, cat_drinks, '')
 
 
 def menu_list(request):
     ensure_default_menu()
     categories = Category.objects.all().order_by('order')
     search_query = (request.GET.get('search') or '').strip()
-    meal = request.GET.get('meal', 'all')
     selected_allergens = request.GET.getlist('allergen')
     allergen_filter_used = ('allergen_filter' in request.GET) or ('allergen' in request.GET)
     if (not allergen_filter_used) and request.user.is_authenticated and getattr(request.user, "role", "") == "student":
@@ -76,10 +80,6 @@ def menu_list(request):
     for a in selected_allergens:
         items = items.exclude(allergens__contains=a)
 
-    if meal in ('breakfast', 'lunch', 'drinks'):
-        meal_map = {'breakfast': 'Завтраки', 'lunch': 'Обеды', 'drinks': 'Напитки'}
-        items = items.filter(category__name=meal_map[meal])
-
     if search_query:
         items = items.filter(Q(name__icontains=search_query) | Q(description__icontains=search_query))
 
@@ -91,11 +91,6 @@ def menu_list(request):
 
     cart = request.session.get('cart', {})
     cart_quantities = {k: int(v.get('quantity', 0)) for k, v in cart.items()}
-    today = timezone.localdate()
-    daily_menu = DailyMenu.objects.filter(date=today).prefetch_related(
-        "breakfast_items__ingredients__product",
-        "lunch_items__ingredients__product",
-    ).first()
 
     not_available_ids = set()
     for item in items:
@@ -107,10 +102,7 @@ def menu_list(request):
         'allergens': MenuItem.ALLERGENS,
         'selected_allergens': selected_allergens,
         'search_query': search_query,
-        'meal': meal,
         'cart_quantities': cart_quantities,
-        'today': today,
-        'daily_menu': daily_menu,
         'not_available_ids': not_available_ids,
     })
 
@@ -285,7 +277,6 @@ def checkout(request):
     if forbid:
         return forbid
 
-    # ✅ только POST (кнопкой из корзины)
     if request.method != 'POST':
         return redirect('view_cart')
 
@@ -294,7 +285,7 @@ def checkout(request):
         messages.warning(request, 'Ваша корзина пуста')
         return redirect('menu_list')
 
-    # 1) Собираем товары корзины
+    # Собираем товары корзины
     cart_lines = []  # [(MenuItem, qty, price)]
     total = Decimal('0')
 
@@ -320,13 +311,12 @@ def checkout(request):
         messages.warning(request, 'Ваша корзина пуста')
         return redirect('menu_list')
 
-    # 2) Проверяем баланс
+    #Проверяем баланс
     if (request.user.balance or Decimal('0')) < total:
         messages.error(request, 'Недостаточно средств на балансе')
         return redirect('wallet')
 
-    # 3) Проверяем наличие продуктов по рецептам
-    # need_products[product_id] = Decimal(total_amount_needed)
+    # Проверяем наличие продуктов по рецептам
     need_products = {}
 
     # Подтягиваем все ингредиенты для всех блюд корзины одним запросом
@@ -346,10 +336,6 @@ def checkout(request):
         pid = ing.product_id
         need_products[pid] = need_products.get(pid, Decimal('0')) + need
 
-    # Если у блюда нет ингредиентов — считаем, что это допустимо (можно включить строгий режим при желании)
-    # Строгий режим: если у блюда нет ингредиентов, запретить оформление.
-
-    # Загружаем продукты и проверяем остатки
     products = {p.id: p for p in Product.objects.filter(id__in=need_products.keys())}
 
     not_enough = []
@@ -365,7 +351,7 @@ def checkout(request):
         messages.error(request, "Недостаточно продуктов на складе:\n" + "\n".join(not_enough))
         return redirect('view_cart')
 
-    # 4) Всё ок — создаём заказ и списываем продукты в транзакции
+    #создаём заказ и списываем продукты в транзакции
     with transaction.atomic():
         order = Order.objects.create(user=request.user, total_amount=total, status='pending')
 
@@ -394,6 +380,7 @@ def checkout(request):
 @login_required
 def order_history(request):
     orders = Order.objects.filter(user=request.user).prefetch_related('orderitem_set__item').order_by('-created_at')
+    mark_nav_seen(request, "order_history")
     return render(request, 'menu/order_history.html', {'orders': orders})
 
 
@@ -431,6 +418,7 @@ def _role_required(role_name):
 @login_required
 @_role_required("cook")
 def stock_list(request):
+    mark_nav_seen(request, "stock_list")
     def _normalize_product_name(value: str) -> str:
         if not value:
             return value
@@ -524,7 +512,7 @@ def stock_list(request):
                 dup.delete()
                 keeper.save(update_fields=["stock", "min_stock", "unit"])
 
-        # 3) проставляем unit и min_stock только если они ещё пустые
+        # проставляем unit и min_stock
         for p in Product.objects.all():
             changed_fields = []
 
@@ -544,9 +532,6 @@ def stock_list(request):
     # обычный показ страницы
     q = (request.GET.get("q") or "").strip()
     products_qs = Product.objects.all().order_by("name")
-    org = getattr(request.user, 'organization', None)
-    if org:
-        products_qs = products_qs.filter(organization=org)
     if q:
         products_qs = products_qs.filter(name__iregex=re.escape(q))
 
@@ -610,11 +595,10 @@ def add_to_purchase_request(request, product_id):
 
         PurchaseRequest.objects.create(
             created_by=request.user,
-            organization=getattr(request.user, 'organization', None),
-            title=product.name,       # ✅ вместо product=...
-            quantity=qty,             # у тебя quantity строка/текст — так безопаснее
+            title=product.name,
+            quantity=qty,
             unit=product.unit,
-            status="new"              # ✅ черновик
+            status="new"
         )
 
         messages.success(request, f"{product.name} добавлен в заявку.")

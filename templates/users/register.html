@@ -54,64 +54,7 @@
             {% if form.role.errors %}
               <div class="text-danger small mt-1">{{ form.role.errors }}</div>
             {% endif %}
-            <div class="form-text">Выберите: участник, повар или администратор.</div>
-          </div>
-
-          <div class="border rounded p-3 mb-3">
-            <h6 class="mb-2">Заведение / организация</h6>
-
-            <div class="mb-3">
-              <label class="form-label">Действие</label>
-              {{ form.org_action }}
-              {% if form.org_action.errors %}
-                <div class="text-danger small mt-1">{{ form.org_action.errors }}</div>
-              {% endif %}
-              <div class="form-text">Eco-менеджер создаёт организацию; остальные подключаются по коду.</div>
-            </div>
-
-            <div id="orgCreateFields">
-              <div class="mb-3">
-                <label class="form-label">Название организации</label>
-                {{ form.org_name }}
-                {% if form.org_name.errors %}
-                  <div class="text-danger small mt-1">{{ form.org_name.errors }}</div>
-                {% endif %}
-              </div>
-
-              <div class="mb-3">
-                <label class="form-label">Тип заведения</label>
-                {{ form.org_type }}
-                {% if form.org_type.errors %}
-                  <div class="text-danger small mt-1">{{ form.org_type.errors }}</div>
-                {% endif %}
-              </div>
-
-              <div class="mb-3">
-                <label class="form-label">Цели (через запятую)</label>
-                {{ form.org_goals }}
-                {% if form.org_goals.errors %}
-                  <div class="text-danger small mt-1">{{ form.org_goals.errors }}</div>
-                {% endif %}
-              </div>
-
-              <div class="mb-3">
-                <label class="form-label">Среднее порций в день</label>
-                {{ form.avg_portions_per_day }}
-                {% if form.avg_portions_per_day.errors %}
-                  <div class="text-danger small mt-1">{{ form.avg_portions_per_day.errors }}</div>
-                {% endif %}
-              </div>
-            </div>
-
-            <div id="orgJoinFields">
-              <div class="mb-3">
-                <label class="form-label">Код подключения</label>
-                {{ form.join_code }}
-                {% if form.join_code.errors %}
-                  <div class="text-danger small mt-1">{{ form.join_code.errors }}</div>
-                {% endif %}
-              </div>
-            </div>
+            <div class="form-text">Выберите: ученик, повар или администратор.</div>
           </div>
 
           <div class="mb-3">
@@ -165,34 +108,6 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-
-  function updateOrgVisibility() {
-    const role = document.getElementById('id_role')?.value;
-    const action = document.getElementById('id_org_action')?.value;
-
-    const createBlock = document.getElementById('orgCreateFields');
-    const joinBlock = document.getElementById('orgJoinFields');
-
-    if (!createBlock || !joinBlock) return;
-
-    // Если роль admin — показываем создание
-    if (role === 'admin') {
-      createBlock.style.display = 'block';
-      joinBlock.style.display = 'none';
-      const actionEl = document.getElementById('id_org_action');
-      if (actionEl) actionEl.value = 'create';
-    } else {
-      createBlock.style.display = 'none';
-      joinBlock.style.display = 'block';
-      const actionEl = document.getElementById('id_org_action');
-      if (actionEl) actionEl.value = 'join';
-    }
-  }
-
-  document.getElementById('id_role')?.addEventListener('change', updateOrgVisibility);
-  document.getElementById('id_org_action')?.addEventListener('change', updateOrgVisibility);
-  updateOrgVisibility();
-
 
   function togglePassword(inputId, iconId) {
     const input = document.getElementById(inputId);

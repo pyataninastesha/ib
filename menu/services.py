@@ -54,7 +54,7 @@ def has_ingredients(item, portions=1):
             .filter(item=item))
 
     if not ings.exists():
-        return False  # нет рецепта => недоступно
+        return False  # нет рецепта
 
     portions = Decimal(str(portions))
 

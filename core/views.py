@@ -1,112 +1,109 @@
-from django.core.exceptions import ValidationError
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.http import HttpRequest, HttpResponse, HttpResponseForbidden
-from django.contrib.auth.decorators import login_required
-from django.utils import timezone
-from django.db.models import Count
-from django.conf import settings
-
-from core.models import PurchaseRequest
-from menu.models import DailyMenu, MenuItem, Product, Order
-from menu.services import deduct_for_items
-from menu.views import _role_required
-from users.models import MealRequest as UserMealRequest, MealReceipt as UserMealReceipt, User
-from core.eco_planning import compute_suggested_portions
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
-from django.urls import reverse
+import re
 
-from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from django.http import HttpRequest, HttpResponse
 from django.contrib.auth.decorators import login_required
-from django.utils import timezone
 from django.db.models import Count
-
-from menu.models import DailyMenu, MenuItem, Product
-from users.models import MealRequest as UserMealRequest, MealReceipt as UserMealReceipt
-from core.eco_planning import compute_suggested_portions
-from datetime import timedelta
-from decimal import Decimal
+from django.http import HttpResponseForbidden
+from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
+from django.utils import timezone
+from django.core.exceptions import ValidationError
+from menu.models import MenuItem, Product, Order, DailyMenu, BanquetMenu
+from menu.services import get_daily_items, deduct_for_items, has_ingredients
+from users.models import User, Subscription, MealReceipt, MealRequest
+from .models import PurchaseRequest
 
-
-from users.models import MealRequest, MealReceipt, Subscription
-from menu.models import DailyMenu, MenuItem
-from core.eco_planning import compute_suggested_portions
 
 
 def home(request):
-    return render(request, "core/home.html")
+    return render(request, 'core/home.html')
 
+
+def _role_required(role_name):
+    def decorator(view_func):
+        def _wrapped(request, *args, **kwargs):
+            if not request.user.is_authenticated:
+                return HttpResponseForbidden("Требуется вход")
+            if getattr(request.user, 'role', 'student') != role_name:
+                return HttpResponseForbidden("Нет доступа")
+            return view_func(request, *args, **kwargs)
+        return _wrapped
+    return decorator
+
+
+
+@login_required
+@_role_required('admin')
+def admin_dashboard(request):
+    today = timezone.localdate()
+
+    pending_purchases = PurchaseRequest.objects.filter(status="in_progress").count()
+    active_subs = Subscription.objects.filter(start_date__lte=today, end_date__gte=today).count()
+    issued_today = MealRequest.objects.filter(date=today, status=MealRequest.STATUS_ISSUED).count()
+    confirmed_today = MealReceipt.objects.filter(date=today).count()
+
+    return render(request, 'core/admin_dashboard.html', {
+        "today": today,
+        "pending_purchases": pending_purchases,
+        "active_subs": active_subs,
+        "issued_today": issued_today,
+        "confirmed_today": confirmed_today,
+    })
+
+
+@login_required
+@_role_required('admin')
 def admin_reports(request):
-    # Логика для создания отчета
-    return render(request, "core/admin_reports.html")
+    mark_nav_seen(request, "admin_reports")
+    #отчеты
+    today = timezone.localdate()
+    start = today - timedelta(days=6)  # 7 дней включая сегодня
 
-def organization_settings(request):
-    # Логика для отображения настроек организации
-    return render(request, "core/organization_settings.html")
+    pending_purchases = PurchaseRequest.objects.filter(status="in_progress").count()
+    active_subs = Subscription.objects.filter(start_date__lte=today, end_date__gte=today).count()
 
-def eco_dashboard(request):
-    # Логика для отображения данных о перерасходах и углеродном следе
-    return render(request, "core/eco_dashboard.html")
+    issued_by_day = list(
+        MealRequest.objects
+        .filter(date__range=(start, today), status=MealRequest.STATUS_ISSUED)
+        .values("date")
+        .annotate(cnt=Count("id"))
+        .order_by("date")
+    )
+    confirmed_by_day = list(
+        MealReceipt.objects
+        .filter(date__range=(start, today))
+        .values("date")
+        .annotate(cnt=Count("id"))
+        .order_by("date")
+    )
 
-def get_daily_items(day, meal_type, organization=None):
-    """Return DailyMenu items for day and meal_type.
+    issued_map = {row["date"]: row["cnt"] for row in issued_by_day}
+    confirmed_map = {row["date"]: row["cnt"] for row in confirmed_by_day}
+    days = [start + timedelta(days=i) for i in range(7)]
+    rows = [
+        {"date": d, "issued": issued_map.get(d, 0), "confirmed": confirmed_map.get(d, 0)}
+        for d in days
+    ]
 
-    NOTE: DailyMenu in this project stores two M2M sets: breakfast_items and lunch_items
-    (there is no 'meal_type' field on DailyMenu).
-    """
-    from menu.models import DailyMenu  # local import to avoid circular imports
+    return render(request, "core/admin_reports.html", {
+        "today": today,
+        "start": start,
+        "pending_purchases": pending_purchases,
+        "active_subs": active_subs,
+        "rows": rows,
+    })
 
-    qs = DailyMenu.objects.filter(date=day)
-    if organization is not None and hasattr(DailyMenu, "organization_id"):
-        qs = qs.filter(organization=organization)
-    daily = qs.first()
-    if not daily:
-        return []
+def mark_nav_seen(request, key: str):
+    seen = request.session.get("nav_seen", {})
+    seen[key] = timezone.now().isoformat()
+    request.session["nav_seen"] = seen
+    request.session.modified = True
 
-    # meal_type strings in system: 'breakfast' or 'lunch'
-    if meal_type == "breakfast" and hasattr(daily, "breakfast_items"):
-        return list(daily.breakfast_items.all())
-    if meal_type == "lunch" and hasattr(daily, "lunch_items"):
-        return list(daily.lunch_items.all())
-
-    # Fallback: union of both sets
-    items = []
-    if hasattr(daily, "breakfast_items"):
-        items += list(daily.breakfast_items.all())
-    if hasattr(daily, "lunch_items"):
-        items += list(daily.lunch_items.all())
-    return items
-
-
-def create_organization(request):
-    if request.method == 'POST':
-        name = request.POST['name']
-        org_type = request.POST['org_type']
-        goals = request.POST['goals']
-        avg_portions_per_day = request.POST['avg_portions_per_day']
-
-        # Генерируем код подключения
-        join_code = Organization.generate_join_code()
-
-        organization = Organization.objects.create(
-            name=name,
-            org_type=org_type,
-            goals=goals,
-            avg_portions_per_day=avg_portions_per_day,
-            join_code=join_code
-        )
-
-        # Переходим к отображению организации
-        return redirect('organization_details', pk=organization.pk)
-
-    return render(request, 'core/create_organization.html')
-
-
+@login_required
 def cook_issue(request):
+    mark_nav_seen(request, "cook_issue")
     if getattr(request.user, 'role', '') != 'cook':
         return HttpResponseForbidden("Доступно только повару")
 
@@ -161,58 +158,61 @@ def cook_issue(request):
         if action == "set_order_status":
             order_id = request.POST.get("order_id")
             status = request.POST.get("status")
+
+            # Проверка, если статус или order_id не переданы
+            if not order_id or not status:
+                messages.error(request, "Неверные данные. Пожалуйста, попробуйте снова.")
+                return redirect("cook_issue")
+
             order = get_object_or_404(Order, id=order_id)
 
             valid_statuses = {k for k, _ in Order.STATUS_CHOICES}
+
+            # Если статус невалиден, выводим ошибку и редиректим обратно
             if status not in valid_statuses:
-                messages.error(request, "Некорректный статус.")
+                messages.error(request, "Некорректный статус. Пожалуйста, выберите правильный статус.")
                 return redirect("cook_issue")
 
+            # Обновляем статус и сохраняем
             order.status = status
             order.save(update_fields=["status", "updated_at"])
-            messages.success(request, f"Статус заказа #{order.id} обновлён.")
-            return redirect("cook_issue")
 
+            messages.success(request, f"Статус заказа #{order.id} обновлён.")
 
         elif action == "issue_meal":
-
             user_id = request.POST.get("user_id")
-
             meal_type = request.POST.get("meal_type")  # breakfast/lunch
-
             student = get_object_or_404(User, id=user_id)
-
             today = timezone.localdate()
 
-            # Проверяем, что у ученика есть подписка на этот прием пищи сегодня
+            # Запрещаем выдачу, если меню дня не задано
+            items = get_daily_items(today, meal_type)
+            if not items:
+                messages.error(
+                    request,
+                    "Не задано меню дня на сегодня. "
+                )
+                return redirect("cook_issue")
 
+            # Проверка абонемента
             has_sub = Subscription.objects.filter(
-
                 user=student,
-
                 start_date__lte=today,
-
                 end_date__gte=today,
-
-                plan=meal_type,  # ВАЖНО: завтрак/обед отдельно
-
+                plan=meal_type,
             ).exists()
 
             if not has_sub:
                 messages.error(request, "У ученика нет активного абонемента на этот тип питания на сегодня.")
-
                 return redirect("cook_issue")
 
-            # создаём или берём заявку на сегодня
-
+            # Создаём/берём заявку
             mr, created = MealRequest.objects.get_or_create(
                 user=student,
                 date=today,
                 meal_type=meal_type,
                 defaults={
-                    "status": MealRequest.STATUS_ISSUED,
-                    "issued_by": request.user,
-                    "issued_at": timezone.now(),
+                    "status": MealRequest.STATUS_REQUESTED,  # важно!
                     "requested_at": timezone.now(),
                 }
             )
@@ -222,26 +222,24 @@ def cook_issue(request):
                 messages.warning(request, "Ученик уже подтвердил получение. Повторная выдача невозможна.")
                 return redirect("cook_issue")
 
-            # === СПИСАНИЕ ПРОДУКТОВ СО СКЛАДА (ТОЛЬКО 1 РАЗ) ===
+            # Списываем продукты один раз
             if not mr.stock_deducted:
-                items = get_daily_items(today, meal_type, organization=getattr(request.user, "organization", None))
-
-                if not items:
-                    messages.error(
-                        request,
-                        "Не задано меню дня на сегодня. "
-                        "Задайте его в админке (DailyMenu) и выберите блюда для завтрака/обеда."
-                    )
-                    return redirect("cook_issue")
-
                 not_enough, _ = deduct_for_items(items)
                 if not_enough:
                     messages.error(request, "Недостаточно продуктов:\n" + "\n".join(not_enough))
                     return redirect("cook_issue")
-
                 mr.stock_deducted = True
 
-            # === ВЫДАЧА ПИТАНИЯ ===
+            # 5) Фиксируем выдачу
+            mr.status = MealRequest.STATUS_ISSUED
+            mr.issued_by = request.user
+            mr.issued_at = timezone.now()
+            mr.save(update_fields=["status", "issued_by", "issued_at", "stock_deducted"])
+
+            messages.success(request, f"Выдано: {student.username} — {meal_type} ({today}).")
+            return redirect("cook_issue")
+
+            # выдача питания
             mr.status = MealRequest.STATUS_ISSUED
             mr.issued_by = request.user
             mr.issued_at = timezone.now()
@@ -254,6 +252,21 @@ def cook_issue(request):
         elif action == "issue_meal_request":
             req_id = request.POST.get("request_id")
             mr = get_object_or_404(MealRequest, id=req_id)
+            items = get_daily_items(mr.date, mr.meal_type)
+            if not items:
+                messages.error(
+                    request,
+                    "Не задано меню дня на сегодня. "
+                    "Задайте его в админке (DailyMenu) и выберите блюда для завтрака/обеда."
+                )
+                return redirect("cook_issue")
+
+            if not mr.stock_deducted:
+                not_enough, _ = deduct_for_items(items)
+                if not_enough:
+                    messages.error(request, "Недостаточно продуктов:\n" + "\n".join(not_enough))
+                    return redirect("cook_issue")
+                mr.stock_deducted = True
 
             if mr.status != MealRequest.STATUS_REQUESTED:
                 messages.warning(request, "Можно выдавать только заявки в статусе 'Запрошено'.")
@@ -262,7 +275,7 @@ def cook_issue(request):
             mr.status = MealRequest.STATUS_ISSUED
             mr.issued_by = request.user
             mr.issued_at = timezone.now()
-            mr.save(update_fields=['status', 'issued_by', 'issued_at'])
+            mr.save(update_fields=['status', 'issued_by', 'issued_at', 'stock_deducted'])
 
             messages.success(request, f"Выдано: {mr.user.username} — {mr.get_meal_type_display()} ({mr.date}).")
             return redirect("cook_issue")
@@ -307,23 +320,17 @@ def cook_issue(request):
 @login_required
 @_role_required("cook")
 def cook_purchase(request):
-    # Черновик = status "new"
-    org = getattr(request.user, 'organization', None)
-
+    mark_nav_seen(request, "cook_purchase")
     draft_items = PurchaseRequest.objects.filter(
         created_by=request.user, status="new"
     )
-    if org:
-        draft_items = draft_items.filter(organization=org)
 
-    # Отправленные/в работе/закуплено = всё кроме new
+    # Отправленные/в работе/закуплено
     sent_items = PurchaseRequest.objects.filter(
         created_by=request.user
     ).exclude(status="new")
-    if org:
-        sent_items = sent_items.filter(organization=org)
 
-    # Отправить администратору -> in_progress
+    # Отправить администратору
     if request.method == "POST" and request.POST.get("action") == "send":
         draft_items.update(status="in_progress")
         messages.success(request, "Заявка отправлена администратору.")
@@ -332,10 +339,7 @@ def cook_purchase(request):
     # Удалить позицию из черновика
     if request.method == "POST" and request.POST.get("action") == "delete":
         pr_id = request.POST.get("id")
-        qs = PurchaseRequest.objects.filter(id=pr_id, created_by=request.user, status="new")
-        if org:
-            qs = qs.filter(organization=org)
-        qs.delete()
+        PurchaseRequest.objects.filter(id=pr_id, created_by=request.user, status="new").delete()
         return redirect("cook_purchase")
 
     return render(request, "core/cook_purchase.html", {
@@ -347,16 +351,13 @@ def cook_purchase(request):
 @login_required
 @_role_required("admin")
 def admin_purchase(request):
-    org = getattr(request.user, 'organization', None)
+    mark_nav_seen(request, "admin_purchase")
     items = PurchaseRequest.objects.filter(status="in_progress").select_related("created_by")
-    if org:
-        items = items.filter(organization=org)
 
     if request.method == "POST" and request.POST.get("action") == "accept":
         pr_id = request.POST.get("id")
         pr = get_object_or_404(PurchaseRequest, id=pr_id, status="in_progress")
 
-        # ---- 1) Парсим количество безопасно ----
         qty_raw = (pr.quantity or "").strip().replace(",", ".")
         qty_clean = re.sub(r"[^0-9.\-]", "", qty_raw)
 
@@ -374,7 +375,7 @@ def admin_purchase(request):
             messages.error(request, "Количество должно быть больше 0.")
             return redirect("admin_purchase")
 
-        # ---- 2) Создаём/находим продукт ----
+        # Создаём/находим продукт
         product, _ = Product.objects.get_or_create(
             name=pr.title,
             defaults={"unit": pr.unit or "г"}
@@ -387,14 +388,13 @@ def admin_purchase(request):
                 f"Пополнение всё равно выполнено."
             )
 
-        # ---- 3) Приводим к формату stock (decimal_places/max_digits) и валидируем ----
         stock_field = Product._meta.get_field("stock")
         dp = getattr(stock_field, "decimal_places", 0) or 0
 
         # округление до нужных decimal_places
-        exp = Decimal("1").scaleb(-dp)  # например dp=2 -> Decimal('0.01')
+        exp = Decimal("1").scaleb(-dp)
         try:
-            qty = qty.quantize(exp)  # qty -> строго в формат поля stock
+            qty = qty.quantize(exp)
         except InvalidOperation:
             messages.error(request, "Количество нельзя привести к формату склада (слишком много знаков после запятой).")
             return redirect("admin_purchase")
@@ -402,7 +402,6 @@ def admin_purchase(request):
         current = product.stock if product.stock is not None else Decimal("0")
         new_stock = current + qty
 
-        # проверка, что число влезает в max_digits/decimal_places
         try:
             stock_field.clean(new_stock, product)
         except ValidationError:
@@ -434,7 +433,8 @@ def admin_purchase(request):
 @login_required
 @_role_required('admin')
 def admin_subscriptions(request):
-    """Администратор: контроль абонементов и фактов получения."""
+    mark_nav_seen(request, "admin_subscriptions")
+    # контроль абонементов и фактов получения.
     date_str = (request.GET.get("date") or "").strip()
     if date_str:
         try:
@@ -509,110 +509,57 @@ def admin_subscriptions(request):
 @login_required
 @_role_required('cook')
 def cook_daily_menu(request):
-    # --- 1) выбранная дата из GET/POST ---
-    date_str = (request.GET.get("date") or request.POST.get("date") or "").strip()
+    """Оставлено для обратной совместимости.
 
-    if date_str:
-        try:
-            selected_day = timezone.datetime.fromisoformat(date_str).date()
-        except ValueError:
-            selected_day = timezone.localdate()
-            messages.warning(request, "Некорректная дата. Показан сегодняшний день.")
-    else:
-        selected_day = timezone.localdate()
+    В версии "кейтеринг" вместо меню дня используется конструктор банкетных меню.
+    """
+    return redirect('cook_banquet_menus')
 
-    # --- 2) отдельный DailyMenu на каждую дату ---
-    org = getattr(request.user, 'organization', None)
-    dm, _ = DailyMenu.objects.get_or_create(date=selected_day, organization=org)
 
-    # --- 3) получаем блюда для выбора (важно: именно это у тебя сейчас “пропадает”) ---
-    # ВАЖНО: в твоём проекте нет meal_type, поэтому делим по названиям категорий.
-    # Если у тебя категории называются иначе — поменяй строки "Завтраки"/"Обеды" на свои.
-    breakfast_items = MenuItem.objects.filter(
-        category__name__iexact="Завтраки"
-    ).prefetch_related("ingredients__product").order_by("name")
+@login_required
+@_role_required('cook')
+def cook_banquet_menus(request):
+    """Повар управляет банкетными наборами (готовые меню)."""
+    # выбираем редактируемое меню
+    menu_id = (request.GET.get('menu_id') or '').strip()
+    current = None
+    if menu_id.isdigit():
+        current = BanquetMenu.objects.filter(id=int(menu_id)).prefetch_related('items').first()
 
-    lunch_items = MenuItem.objects.filter(
-        category__name__iexact="Обеды"
-    ).prefetch_related("ingredients__product").order_by("name")
-
-    # --- 4) функция проверки ингредиентов (упрощённо: stock >= amount) ---
-    def has_ingredients(menu_item: MenuItem) -> bool:
-        for ing in menu_item.ingredients.all():
-            need = ing.amount if ing.amount is not None else Decimal("0")
-            have = ing.product.stock if ing.product.stock is not None else Decimal("0")
-            if have < need:
-                return False
-        return True
+    items = MenuItem.objects.filter(is_available=True).prefetch_related('ingredients__product', 'category').order_by('category__order', 'name')
 
     not_available_ids = set()
-    for it in list(breakfast_items) + list(lunch_items):
+    for it in items:
         if not has_ingredients(it):
             not_available_ids.add(it.id)
 
-    # --- 5) сохраняем выбранные блюда (дату не меняем) ---
-    if request.method == "POST":
-        # берем выбранные id из чекбоксов
-        b_ids = request.POST.getlist("breakfast_items")
-        l_ids = request.POST.getlist("lunch_items")
+    if request.method == 'POST':
+        name = (request.POST.get('name') or '').strip()
+        description = (request.POST.get('description') or '').strip()
+        is_active = bool(request.POST.get('is_active'))
+        selected_ids = [i for i in request.POST.getlist('items') if i.isdigit()]
+        selected_ids = [int(i) for i in selected_ids if int(i) not in not_available_ids]
 
-        # на всякий случай: запрещаем сохранять недоступные блюда (даже если кто-то руками отправит POST)
-        b_ids = [i for i in b_ids if i.isdigit() and int(i) not in not_available_ids]
-        l_ids = [i for i in l_ids if i.isdigit() and int(i) not in not_available_ids]
+        if not name:
+            messages.error(request, 'Укажите название банкетного меню.')
+        else:
+            if current is None:
+                current = BanquetMenu.objects.create(name=name, description=description, is_active=is_active)
+            else:
+                current.name = name
+                current.description = description
+                current.is_active = is_active
+                current.save()
 
-        dm.breakfast_items.set(MenuItem.objects.filter(id__in=b_ids))
-        dm.lunch_items.set(MenuItem.objects.filter(id__in=l_ids))
+            current.items.set(MenuItem.objects.filter(id__in=selected_ids))
+            messages.success(request, 'Банкетное меню сохранено.')
+            return redirect(f"{reverse('cook_banquet_menus')}?menu_id={current.id}")
 
-        # сохраняем план порций
-        try:
-            dm.planned_breakfast_portions = int(request.POST.get('planned_breakfast_portions') or 0)
-        except ValueError:
-            dm.planned_breakfast_portions = 0
-        try:
-            dm.planned_lunch_portions = int(request.POST.get('planned_lunch_portions') or 0)
-        except ValueError:
-            dm.planned_lunch_portions = 0
-        dm.save(update_fields=['planned_breakfast_portions','planned_lunch_portions'])
+    menus = BanquetMenu.objects.all().prefetch_related('items').order_by('-updated_at')
 
-        messages.success(request, "План производства сохранён.")
-        return redirect(f"{reverse('cook_daily_menu')}?date={selected_day.isoformat()}")
-
-    # --- 6) подгружаем меню дня с ингредиентами для блока “что будет выдано” ---
-    dm = DailyMenu.objects.filter(date=selected_day, organization=org).prefetch_related(
-        "breakfast_items__ingredients__product",
-        "lunch_items__ingredients__product",
-    ).first()
-
-    all_menus = DailyMenu.objects.filter(organization=org).prefetch_related(
-        "breakfast_items__ingredients__product",
-        "lunch_items__ingredients__product",
-    ).order_by("-date")
-
-    
-    # --- превью рекомендаций (не сохраняет) ---
-    b_suggest_preview, b_inputs_preview = compute_suggested_portions(selected_day, MealReceipt.MEAL_BREAKFAST, organization=org)
-    l_suggest_preview, l_inputs_preview = compute_suggested_portions(selected_day, MealReceipt.MEAL_LUNCH, organization=org)
-
-    return render(request, "core/cook_daily_menu.html", {
-        "today": selected_day,            # если где-то ещё используется today
-        "selected_day": selected_day,     # для input date и заголовка
-        "daily_menu": dm,
-        "b_suggest_preview": b_suggest_preview,
-        "b_inputs_preview": b_inputs_preview,
-        "l_suggest_preview": l_suggest_preview,
-        "l_inputs_preview": l_inputs_preview,
-        "all_menus": all_menus,
-        "breakfast_items": breakfast_items,
-        "lunch_items": lunch_items,
-        "not_available_ids": not_available_ids,
+    return render(request, 'core/cook_banquet_menus.html', {
+        'menus': menus,
+        'current': current,
+        'items': items,
+        'not_available_ids': not_available_ids,
     })
-from core.eco_planning import compute_suggested_portions
-
-def compute_plan_for_day(day, org):
-    b_suggest, b_inputs = compute_suggested_portions(day, MealReceipt.MEAL_BREAKFAST, organization=org)
-    l_suggest, l_inputs = compute_suggested_portions(day, MealReceipt.MEAL_LUNCH, organization=org)
-    return b_suggest, l_suggest, b_inputs, l_inputs
-
-def admin_dashboard(request):
-    # Example admin dashboard view
-    return render(request, "core/admin_dashboard.html")

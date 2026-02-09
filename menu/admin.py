@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, MenuItem, Review, Order, OrderItem, DailyMenu
+from .models import Category, MenuItem, Review, Order, OrderItem, DailyMenu, BanquetMenu
 
 
 @admin.register(Category)
@@ -38,8 +38,8 @@ class OrderItemInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'total_amount', 'status', 'created_at', 'items_count')
-    list_filter = ('status', 'created_at')
+    list_display = ('id', 'user', 'order_type', 'event_date', 'guests_count', 'total_amount', 'status', 'created_at', 'items_count')
+    list_filter = ('order_type', 'status', 'created_at')
     search_fields = ('user__username', 'user__email')
     readonly_fields = ('created_at', 'updated_at')
     inlines = [OrderItemInline]
@@ -79,3 +79,11 @@ class OrderItemAdmin(admin.ModelAdmin):
 class DailyMenuAdmin(admin.ModelAdmin):
     list_display = ("date",)
     filter_horizontal = ("breakfast_items", "lunch_items")
+
+
+@admin.register(BanquetMenu)
+class BanquetMenuAdmin(admin.ModelAdmin):
+    list_display = ('name', 'is_active', 'updated_at')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'description')
+    filter_horizontal = ('items',)

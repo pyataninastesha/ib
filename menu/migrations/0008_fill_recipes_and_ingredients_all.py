@@ -3,7 +3,6 @@ from django.db import migrations
 
 # Ручные рецепты и ингредиенты (основное ежедневное меню)
 RECIPES = {
-    # ====== ЗАВТРАКИ ======
     "Рисовая каша на молоке": {
         "recipe": "1) Промыть рис.\n2) Вскипятить молоко/воду, добавить рис и соль.\n3) Варить до мягкости, добавить сахар и масло.\n4) Подать горячей.",
         "ings": [
@@ -243,7 +242,6 @@ def seed(apps, schema_editor):
     MenuItemIngredient = apps.get_model("menu", "MenuItemIngredient")
 
     for item in MenuItem.objects.all():
-        # если уже есть пошаговый рецепт (1) 2) 3)) — не трогаем
         if item.description and "1)" in item.description:
             continue
 
@@ -270,8 +268,6 @@ def seed(apps, schema_editor):
 
             continue
 
-        # fallback для остальных блюд:
-        # берем "Состав: ..." и превращаем в ингредиенты + ставим базовый рецепт
         desc = (item.description or "").strip()
         if desc.startswith("Состав:"):
             raw = desc.replace("Состав:", "").strip()

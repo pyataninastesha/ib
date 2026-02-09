@@ -12,16 +12,6 @@
       </div>
     </div>
 
-          {% if org %}
-      <div class="alert alert-info d-flex justify-content-between align-items-center">
-        <div>
-          <div><strong>Код подключения организации:</strong> <span style="font-size:1.2em">{{ join_code }}</span></div>
-          <div class="small">Участники вводят этот код при регистрации, чтобы подключиться к вашему заведению.</div>
-        </div>
-        <a class="btn btn-outline-primary" href="{% url 'organization_settings' %}">Настроить</a>
-      </div>
-      {% endif %}
-
     <div class="row g-4">
       <div class="col-md-4">
         <div class="card h-100 border-0 shadow-sm">
@@ -32,7 +22,7 @@
             <ul class="list-unstyled mb-3">
               <li>Активных абонементов: <b>{{ active_subs }}</b></li>
               <li>Выдано поваром: <b>{{ issued_today }}</b></li>
-              <li>Подтверждено участниками: <b>{{ confirmed_today }}</b></li>
+              <li>Подтверждено учениками: <b>{{ confirmed_today }}</b></li>
             </ul>
             <a href="{% url 'admin_subscriptions' %}" class="btn btn-outline-primary">Открыть</a>
           </div>

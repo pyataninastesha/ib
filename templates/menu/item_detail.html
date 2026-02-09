@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ item.name }} - EcoFood Platform{% endblock %}
+{% block title %}{{ item.name }} - Столовая{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -162,7 +162,7 @@
 
 {% elif user.is_authenticated %}
     <div class="alert alert-info mt-4">
-        Вы можете только <strong>просматривать</strong> отзывы участников.
+        Вы можете только <strong>просматривать</strong> отзывы учеников.
     </div>
 
 {% else %}

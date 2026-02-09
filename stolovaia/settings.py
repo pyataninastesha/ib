@@ -1,22 +1,15 @@
-"""
-Django settings for stolovaia project.
-"""
-
 import os
 from pathlib import Path
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Quick-start development settings - unsuitable for production
 SECRET_KEY = 'django-insecure-4!@c#8!q$e%h&u$r3v^b5n7m9o1k3l5p7r9t1v3x5z7b9d1f3h5'
 
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 ALLOWED_HOSTS = []
 
-# Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -25,11 +18,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # Third party apps
     'crispy_forms',
     'crispy_bootstrap5',
 
-    # My apps
     'core',
     'menu',
     'users',

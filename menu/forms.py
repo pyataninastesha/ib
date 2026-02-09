@@ -45,17 +45,17 @@ class DailyMenuForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # 1) Надёжно: берём категории по order (как в проекте: 1=завтраки, 2=обеды)
+        # берём категории по order
         breakfast_cat = Category.objects.filter(order=1).first()
         lunch_cat = Category.objects.filter(order=2).first()
 
-        # 2) Если вдруг order не заполнен — пробуем по названию
+        # 2) пробуем по названию
         if not breakfast_cat:
             breakfast_cat = Category.objects.filter(name__icontains="завтр").first()
         if not lunch_cat:
             lunch_cat = Category.objects.filter(name__icontains="обед").first()
 
-        # 3) Если всё равно не нашли — берём первые две категории (чтобы не было пусто)
+        # 3) берём первые две категории
         cats = list(Category.objects.all().order_by("order", "id"))
         if not breakfast_cat and len(cats) >= 1:
             breakfast_cat = cats[0]

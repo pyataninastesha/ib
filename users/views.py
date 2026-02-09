@@ -7,7 +7,10 @@ from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from django.http import HttpResponseForbidden
+from django.db import transaction
 
+from core.views import mark_nav_seen
+from menu.models import BanquetMenu, Order, OrderItem
 from .forms import CustomUserCreationForm, CustomAuthenticationForm, ProfileUpdateForm
 from .models import Subscription, MealReceipt, MealRequest
 from .models import BalanceTopUp
@@ -16,7 +19,7 @@ from .models import BalanceTopUp
 def _redirect_by_role(user):
     role = getattr(user, 'role', 'student')
     if role == 'cook':
-        return redirect('cook_issue')
+        return redirect('cook_banquet_menus')
     if role == 'admin':
         return redirect('admin_dashboard')
     return redirect('home')
@@ -36,6 +39,8 @@ def register_view(request):
 
 
 def login_view(request):
+    if getattr(request.user, 'role', 'student') != 'student':
+        return HttpResponseForbidden('Пополнение баланса доступно только ученикам')
     if request.method == 'POST':
         form = CustomAuthenticationForm(request, data=request.POST)
         if form.is_valid():
@@ -97,7 +102,7 @@ def wallet_view(request):
             messages.error(request, 'Сумма должна быть больше 0')
             return redirect('wallet')
 
-        # ✅ лимит пополнения за один раз
+        # лимит пополнения за один раз
         if amount > Decimal('5000'):
             messages.error(request, 'Максимальная сумма пополнения — 5000 ₽')
             return redirect('wallet')
@@ -119,6 +124,85 @@ def wallet_view(request):
 
     return render(request, 'users/wallet.html', {
         'topups': topups
+    })
+
+
+@login_required
+def banquet_purchase_view(request):
+    """Покупка банкета: выбор готового меню, даты и количества гостей."""
+    if getattr(request.user, 'role', 'student') != 'student':
+        return HttpResponseForbidden("Доступно только клиенту.")
+
+    menus = BanquetMenu.objects.filter(is_active=True).prefetch_related('items').order_by('-updated_at')
+
+    selected_menu = None
+    guests_count = 10
+    event_date = timezone.localdate()
+
+    if request.method == 'POST':
+        menu_id = (request.POST.get('menu_id') or '').strip()
+        raw_guests = (request.POST.get('guests_count') or '').strip()
+        raw_date = (request.POST.get('event_date') or '').strip()
+
+        if menu_id.isdigit():
+            selected_menu = menus.filter(id=int(menu_id)).first()
+
+        try:
+            guests_count = int(raw_guests)
+        except Exception:
+            guests_count = 0
+
+        try:
+            event_date = timezone.datetime.fromisoformat(raw_date).date() if raw_date else timezone.localdate()
+        except Exception:
+            event_date = timezone.localdate()
+
+        if not selected_menu:
+            messages.error(request, 'Выберите банкетное меню.')
+            return redirect('banquets')
+
+        if guests_count <= 0 or guests_count > 500:
+            messages.error(request, 'Укажите корректное количество гостей (1–500).')
+            return redirect('banquets')
+
+        price_per_person = selected_menu.price_per_person
+        total = (Decimal(str(price_per_person)) * Decimal(guests_count)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+        if (request.user.balance or Decimal('0')) < total:
+            messages.error(request, f'Недостаточно средств. Нужно {total} ₽, на балансе {(request.user.balance or Decimal("0"))} ₽')
+            return redirect('wallet')
+
+        with transaction.atomic():
+            # списываем
+            request.user.balance = (request.user.balance or Decimal('0')) - total
+            request.user.save(update_fields=['balance'])
+
+            order = Order.objects.create(
+                user=request.user,
+                total_amount=total,
+                status='confirmed',
+                order_type='banquet',
+                event_date=event_date,
+                guests_count=guests_count,
+            )
+
+            # каждая позиция — по числу гостей (условно “порции”)
+            for item in selected_menu.items.all():
+                OrderItem.objects.create(
+                    order=order,
+                    item=item,
+                    quantity=guests_count,
+                    price=item.price,
+                )
+
+        messages.success(request, f'Банкет оформлен! Сумма: {total} ₽. Дата: {event_date}.')
+        return redirect('order_history')
+
+    return render(request, 'users/banquets.html', {
+        'menus': menus,
+        'selected_menu': selected_menu,
+        'guests_count': guests_count,
+        'event_date': event_date,
     })
 
 @login_required
@@ -143,19 +227,9 @@ def subscription_view(request):
     }
 
     today = timezone.localdate()
-    date_str = (request.POST.get('date') or '').strip()
-    selected_day = today
-    if date_str:
-        try:
-            selected_day = timezone.datetime.fromisoformat(date_str).date()
-        except ValueError:
-            selected_day = today
-    # allow forecasting up to 7 days ahead
-    if selected_day < today or selected_day > (today + timedelta(days=7)):
-        selected_day = today
 
     active_subs = (Subscription.objects
-                   .filter(user=request.user, start_date__lte=selected_day, end_date__gte=selected_day)
+                   .filter(user=request.user, start_date__lte=today, end_date__gte=today)
                    .exclude(plan='both')
                    .order_by('-end_date'))
 
@@ -183,7 +257,7 @@ def subscription_view(request):
             messages.error(request, f'Недостаточно средств. Нужно {price} ₽.')
             return redirect('wallet')
 
-        # ✅ если уже есть активный абонемент ЭТОГО тарифа — продлеваем именно его
+        # если уже есть активный абонемент  — продлеваем именно его
         same_plan_active = active_subs.filter(plan=plan).order_by('-end_date').first()
         if same_plan_active:
             same_plan_active.end_date = same_plan_active.end_date + timedelta(days=days)
@@ -195,13 +269,12 @@ def subscription_view(request):
             messages.success(request, f'Абонемент продлён на {days} дней! До {same_plan_active.end_date}.')
             return redirect('subscription')
 
-        # ✅ иначе создаём новый
+        # иначе создаём новый
         new_sub = Subscription.objects.create(
             user=request.user,
-            organization=getattr(request.user, 'organization', None),
             plan=plan,
-            start_date=selected_day,
-            end_date=selected_day + timedelta(days=days - 1),
+            start_date=today,
+            end_date=today + timedelta(days=days - 1),
         )
 
         request.user.balance = balance - price
@@ -219,28 +292,19 @@ def subscription_view(request):
 
 @login_required
 def receive_meal_view(request):
+    mark_nav_seen(request, "receive_meal")
     # только ученик
     if getattr(request.user, "role", "student") != "student":
         messages.error(request, "Раздел доступен только ученику.")
         return redirect("menu_list")
 
     today = timezone.localdate()
-    date_str = (request.POST.get('date') or '').strip()
-    selected_day = today
-    if date_str:
-        try:
-            selected_day = timezone.datetime.fromisoformat(date_str).date()
-        except ValueError:
-            selected_day = today
-    # allow forecasting up to 7 days ahead
-    if selected_day < today or selected_day > (today + timedelta(days=7)):
-        selected_day = today
 
     # активные подписки на сегодня
     active_subs = Subscription.objects.filter(
         user=request.user,
-        start_date__lte=selected_day,
-        end_date__gte=selected_day,
+        start_date__lte=today,
+        end_date__gte=today,
     ).exclude(plan="both")  # если вдруг осталось в БД
 
     has_breakfast_sub = active_subs.filter(plan="breakfast").exists()
@@ -248,19 +312,19 @@ def receive_meal_view(request):
 
     # заявки на сегодня
     breakfast_req = MealRequest.objects.filter(
-        user=request.user, date=selected_day, meal_type="breakfast"
+        user=request.user, date=today, meal_type="breakfast"
     ).order_by("-requested_at").first()
 
     lunch_req = MealRequest.objects.filter(
-        user=request.user, date=selected_day, meal_type="lunch"
+        user=request.user, date=today, meal_type="lunch"
     ).order_by("-requested_at").first()
 
     got_breakfast = MealReceipt.objects.filter(
-        user=request.user, date=selected_day, meal_type="breakfast"
+        user=request.user, date=today, meal_type="breakfast"
     ).exists()
 
     got_lunch = MealReceipt.objects.filter(
-        user=request.user, date=selected_day, meal_type="lunch"
+        user=request.user, date=today, meal_type="lunch"
     ).exists()
 
     history = MealRequest.objects.filter(
@@ -290,16 +354,6 @@ def request_meal(request):
 
     meal_type = request.POST.get('meal_type')
     today = timezone.localdate()
-    date_str = (request.POST.get('date') or '').strip()
-    selected_day = today
-    if date_str:
-        try:
-            selected_day = timezone.datetime.fromisoformat(date_str).date()
-        except ValueError:
-            selected_day = today
-    # allow forecasting up to 7 days ahead
-    if selected_day < today or selected_day > (today + timedelta(days=7)):
-        selected_day = today
 
     if meal_type not in (MealReceipt.MEAL_BREAKFAST, MealReceipt.MEAL_LUNCH):
         messages.error(request, "Неверный тип питания.")
@@ -309,8 +363,8 @@ def request_meal(request):
     sub = Subscription.objects.filter(
         user=request.user,
         plan=meal_type,
-        start_date__lte=selected_day,
-        end_date__gte=selected_day
+        start_date__lte=today,
+        end_date__gte=today
     ).first()
 
     if not sub:
@@ -319,7 +373,7 @@ def request_meal(request):
 
     # уже есть активная заявка/выдача/подтверждение на сегодня?
     exists = MealRequest.objects.filter(
-        user=request.user, date=selected_day, meal_type=meal_type
+        user=request.user, date=today, meal_type=meal_type
     ).exclude(status=MealRequest.STATUS_CANCELLED).exists()
 
     if exists:
@@ -328,8 +382,7 @@ def request_meal(request):
 
     MealRequest.objects.create(
         user=request.user,
-        organization=getattr(request.user, 'organization', None),
-        date=selected_day,
+        date=today,
         meal_type=meal_type,
         status=MealRequest.STATUS_REQUESTED,
         subscription=sub
@@ -376,7 +429,6 @@ def confirm_meal(request, request_id):
     # (опционально) фиксируем в MealReceipt для отчётов
     MealReceipt.objects.update_or_create(
         user=mr.user,
-        organization=getattr(mr, 'organization', None) or getattr(mr.user, 'organization', None),
         date=mr.date,
         meal_type=mr.meal_type,
         defaults={'issued_by': mr.issued_by}
@@ -390,35 +442,15 @@ def confirm_meal(request, request_id):
 
 def get_active_subscription(user):
     today = timezone.localdate()
-    date_str = (request.POST.get('date') or '').strip()
-    selected_day = today
-    if date_str:
-        try:
-            selected_day = timezone.datetime.fromisoformat(date_str).date()
-        except ValueError:
-            selected_day = today
-    # allow forecasting up to 7 days ahead
-    if selected_day < today or selected_day > (today + timedelta(days=7)):
-        selected_day = today
     return (Subscription.objects
-            .filter(user=user, start_date__lte=selected_day, end_date__gte=selected_day)
+            .filter(user=user, start_date__lte=today, end_date__gte=today)
             .order_by('-end_date')
             .first())
 
 def get_active_subscriptions(user):
     today = timezone.localdate()
-    date_str = (request.POST.get('date') or '').strip()
-    selected_day = today
-    if date_str:
-        try:
-            selected_day = timezone.datetime.fromisoformat(date_str).date()
-        except ValueError:
-            selected_day = today
-    # allow forecasting up to 7 days ahead
-    if selected_day < today or selected_day > (today + timedelta(days=7)):
-        selected_day = today
     return (Subscription.objects
-            .filter(user=user, start_date__lte=selected_day, end_date__gte=selected_day)
+            .filter(user=user, start_date__lte=today, end_date__gte=today)
             .order_by('-end_date'))
 
 
@@ -433,16 +465,6 @@ def subscription_cancel(request, sub_id: int):
 
     sub = get_object_or_404(Subscription, id=sub_id, user=request.user)
     today = timezone.localdate()
-    date_str = (request.POST.get('date') or '').strip()
-    selected_day = today
-    if date_str:
-        try:
-            selected_day = timezone.datetime.fromisoformat(date_str).date()
-        except ValueError:
-            selected_day = today
-    # allow forecasting up to 7 days ahead
-    if selected_day < today or selected_day > (today + timedelta(days=7)):
-        selected_day = today
 
     if sub.end_date < today:
         messages.info(request, 'Этот абонемент уже завершён.')

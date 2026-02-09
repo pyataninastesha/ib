@@ -1,73 +1,67 @@
-{% extends 'base.html' %}
-{% block title %}Eco отчёты{% endblock %}
+{% extends "base.html" %}
+
+{% block title %}Отчеты{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-3">
-  <div>
-    <h2 class="mb-0">Eco отчёты</h2>
-    <div class="text-muted">{% if org %}Организация: <strong>{{ org.name }}</strong>{% endif %}</div>
-  </div>
-  <a class="btn btn-outline-primary" href="{% url 'eco_dashboard' %}">Eco Dashboard</a>
+<div class="mb-3">
+    <h2 class="mb-0">Отчеты</h2>
+    <div class="text-muted">Сводные показатели на {{ today }}</div>
 </div>
 
-<div class="row g-3 mb-4">
-  <div class="col-md-4">
-    <div class="card h-100 shadow-sm"><div class="card-body">
-      <div class="text-muted">Активные прогнозы (абонементы)</div>
-      <div class="fs-3 fw-bold">{{ active_subs }}</div>
-    </div></div>
-  </div>
-  <div class="col-md-4">
-    <div class="card h-100 shadow-sm"><div class="card-body">
-      <div class="text-muted">Закупки в работе</div>
-      <div class="fs-3 fw-bold">{{ pending_purchases }}</div>
-    </div></div>
-  </div>
-  <div class="col-md-4">
-    <div class="card h-100 shadow-sm"><div class="card-body">
-      <div class="text-muted">Риск отходов (7 дней)</div>
-      <div class="fs-3 fw-bold">{{ totals.waste_risk }}</div>
-    </div></div>
-  </div>
+<div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted">Заявок на закупку (в работе)</div>
+                <div class="fs-2 fw-bold">{{ pending_purchases }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted">Активных абонементов сегодня</div>
+                <div class="fs-2 fw-bold">{{ active_subs }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted">Период отчета</div>
+                <div class="fw-bold">{{ start }} — {{ today }}</div>
+                <div class="small text-muted">Последние 7 дней</div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<div class="card shadow-sm">
-  <div class="card-header bg-white"><strong>7 дней: план / прогноз / факт</strong></div>
-  <div class="table-responsive">
-    <table class="table mb-0">
-      <thead>
-        <tr>
-          <th>Дата</th>
-          <th>План</th>
-          <th>Прогноз</th>
-          <th>Выдано</th>
-          <th>Потреблено</th>
-          <th>Риск отходов</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in rows %}
-          <tr>
-            <td>{{ r.date|date:"d.m" }}</td>
-            <td>{{ r.planned }}</td>
-            <td>{{ r.forecast }}</td>
-            <td>{{ r.issued }}</td>
-            <td>{{ r.confirmed }}</td>
-            <td><strong>{{ r.waste_risk }}</strong></td>
-          </tr>
-        {% endfor %}
-      </tbody>
-      <tfoot>
-        <tr>
-          <th>Итого</th>
-          <th>{{ totals.planned }}</th>
-          <th>{{ totals.forecast }}</th>
-          <th>{{ totals.issued }}</th>
-          <th>{{ totals.confirmed }}</th>
-          <th>{{ totals.waste_risk }}</th>
-        </tr>
-      </tfoot>
-    </table>
-  </div>
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title mb-3">Выдача и подтверждения питания (по дням)</h5>
+
+        <div class="table-responsive">
+            <table class="table table-striped align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th class="text-nowrap">Выдано поваром</th>
+                        <th class="text-nowrap">Подтверждено учеником</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                        <tr>
+                            <td>{{ row.date }}</td>
+                            <td>{{ row.issued }}</td>
+                            <td>{{ row.confirmed }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 {% endblock %}

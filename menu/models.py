@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from decimal import Decimal
 
 
 class Category(models.Model):
@@ -17,7 +18,6 @@ class Category(models.Model):
 
 
 class MenuItem(models.Model):
-    # ✅ КОД -> РУССКОЕ НАЗВАНИЕ (расширено)
     ALLERGENS = [
         ('gluten', 'Глютен (пшеница/мука)'),
         ('lactose', 'Лактоза (молочные продукты)'),
@@ -42,7 +42,7 @@ class MenuItem(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='items', verbose_name='Категория')
     image = models.ImageField(upload_to='menu_items/', blank=True, null=True, verbose_name='Изображение')
 
-    # хранится строкой: "gluten lactose tomato"
+    # хранится строкой
     allergens = models.CharField(max_length=300, blank=True, verbose_name='Аллергены (коды через пробел)')
     is_available = models.BooleanField(default=True, verbose_name='Доступно')
     calories = models.IntegerField(blank=True, null=True, verbose_name='Калории')
@@ -54,6 +54,34 @@ class MenuItem(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class BanquetMenu(models.Model):
+    """Готовый набор блюд для банкета (кейтеринг)."""
+
+    name = models.CharField(max_length=200, verbose_name='Название')
+    description = models.TextField(blank=True, verbose_name='Описание')
+    items = models.ManyToManyField('MenuItem', blank=True, related_name='banquet_menus', verbose_name='Блюда')
+    is_active = models.BooleanField(default=True, verbose_name='Активно')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Создано')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
+
+    class Meta:
+        verbose_name = 'Меню для банкета'
+        verbose_name_plural = 'Меню для банкетов'
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def price_per_person(self):
+        """Сумма цен блюд в наборе (за 1 гостя)."""
+        total = Decimal('0')
+        for it in self.items.all():
+            if it.price is not None:
+                total += Decimal(str(it.price))
+        return total
 
 
 class Review(models.Model):
@@ -92,6 +120,14 @@ class Order(models.Model):
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name='Пользователь')
     items = models.ManyToManyField(MenuItem, through='OrderItem', verbose_name='Позиции')
+    order_type = models.CharField(
+        max_length=20,
+        choices=[('regular', 'Обычный'), ('banquet', 'Банкет')],
+        default='regular',
+        verbose_name='Тип заказа'
+    )
+    event_date = models.DateField(blank=True, null=True, verbose_name='Дата мероприятия')
+    guests_count = models.IntegerField(blank=True, null=True, verbose_name='Количество гостей')
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Общая сумма')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='Статус')
     received_by_student = models.BooleanField(default=False, verbose_name='Получено учеником')
@@ -123,21 +159,10 @@ class OrderItem(models.Model):
 
 
 class Product(models.Model):
-    name = models.CharField(max_length=200)
-    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, null=True, blank=True, related_name='products', verbose_name='Организация')
+    name = models.CharField(max_length=200, unique=True)
     unit = models.CharField(max_length=20, default="г")
     stock = models.DecimalField(max_digits=20, decimal_places=2, default=0)
     min_stock = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-
-    
-
-    class Meta:
-        verbose_name = "Продукт"
-        verbose_name_plural = "Продукты"
-        constraints = [
-            models.UniqueConstraint(fields=['organization', 'name'], name='uniq_product_org_name')
-        ]
-
 
     @staticmethod
     def normalize_name(value: str) -> str:
@@ -170,31 +195,9 @@ class MenuItemIngredient(models.Model):
 
 
 class DailyMenu(models.Model):
-    organization = models.ForeignKey(
-        'core.Organization',
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name='daily_menus',
-        verbose_name='Организация',
-    )
-    date = models.DateField(verbose_name='Дата')
-
-    # План состава меню (какие позиции готовим)
-    breakfast_items = models.ManyToManyField("MenuItem", blank=True, related_name="daily_breakfasts", verbose_name='Позиции (утро)')
-    lunch_items = models.ManyToManyField("MenuItem", blank=True, related_name="daily_lunches", verbose_name='Позиции (день)')
-
-    # План объёма (сколько порций)
-    planned_breakfast_portions = models.PositiveIntegerField(default=0, verbose_name='План порций (утро)')
-    planned_lunch_portions = models.PositiveIntegerField(default=0, verbose_name='План порций (день)')
-
-    class Meta:
-        verbose_name = "План производства"
-        verbose_name_plural = "Планы производства"
-        constraints = [
-            models.UniqueConstraint(fields=['organization', 'date'], name='uniq_dailymenu_org_date')
-        ]
-        ordering = ['-date']
+    date = models.DateField(unique=True)
+    breakfast_items = models.ManyToManyField("MenuItem", blank=True, related_name="daily_breakfasts")
+    lunch_items = models.ManyToManyField("MenuItem", blank=True, related_name="daily_lunches")
 
     def __str__(self):
-        return f"План производства {self.date}"
+        return f"Меню дня {self.date}"
