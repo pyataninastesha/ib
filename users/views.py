@@ -133,7 +133,10 @@ def banquet_purchase_view(request):
     if getattr(request.user, 'role', 'student') != 'student':
         return HttpResponseForbidden("Доступно только клиенту.")
 
-    menus = BanquetMenu.objects.filter(is_active=True).prefetch_related('items').order_by('-updated_at')
+    menus = BanquetMenu.objects.filter(
+        is_active=True,
+        status=BanquetMenu.STATUS_APPROVED
+    ).prefetch_related('items').order_by('-updated_at')
 
     selected_menu = None
     guests_count = 10

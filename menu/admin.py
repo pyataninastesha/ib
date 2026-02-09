@@ -83,7 +83,7 @@ class DailyMenuAdmin(admin.ModelAdmin):
 
 @admin.register(BanquetMenu)
 class BanquetMenuAdmin(admin.ModelAdmin):
-    list_display = ('name', 'is_active', 'updated_at')
-    list_filter = ('is_active',)
+    list_display = ('name', 'status', 'is_active', 'created_by', 'reviewed_by', 'updated_at')
+    list_filter = ('status', 'is_active',)
     search_fields = ('name', 'description')
     filter_horizontal = ('items',)

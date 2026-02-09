@@ -59,10 +59,48 @@ class MenuItem(models.Model):
 class BanquetMenu(models.Model):
     """Готовый набор блюд для банкета (кейтеринг)."""
 
+    STATUS_PENDING = 'pending'
+    STATUS_APPROVED = 'approved'
+    STATUS_REJECTED = 'rejected'
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'На рассмотрении'),
+        (STATUS_APPROVED, 'Принято'),
+        (STATUS_REJECTED, 'Отклонено'),
+    ]
+
     name = models.CharField(max_length=200, verbose_name='Название')
     description = models.TextField(blank=True, verbose_name='Описание')
     items = models.ManyToManyField('MenuItem', blank=True, related_name='banquet_menus', verbose_name='Блюда')
-    is_active = models.BooleanField(default=True, verbose_name='Активно')
+
+    # ВАЖНО: повар создаёт → админ принимает/отклоняет
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='banquet_menus_created',
+        verbose_name='Создал',
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        verbose_name='Статус',
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='banquet_menus_reviewed',
+        verbose_name='Проверил',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name='Проверено')
+
+    # Активность меню для клиента (включается при approve)
+    is_active = models.BooleanField(default=False, verbose_name='Активно')
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Создано')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
 
@@ -79,9 +117,12 @@ class BanquetMenu(models.Model):
         """Сумма цен блюд в наборе (за 1 гостя)."""
         total = Decimal('0')
         for it in self.items.all():
-            if it.price is not None:
-                total += Decimal(str(it.price))
+            try:
+                total += it.price
+            except Exception:
+                pass
         return total
+
 
 
 class Review(models.Model):

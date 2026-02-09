@@ -517,17 +517,21 @@ def cook_daily_menu(request):
 
 
 @login_required
-@_role_required('cook')
 def cook_banquet_menus(request):
-    """Повар управляет банкетными наборами (готовые меню)."""
-    # выбираем редактируемое меню
-    menu_id = (request.GET.get('menu_id') or '').strip()
-    current = None
-    if menu_id.isdigit():
-        current = BanquetMenu.objects.filter(id=int(menu_id)).prefetch_related('items').first()
+    """Повар: создаёт банкетные меню из основного меню и отправляет админу на согласование."""
+    mark_nav_seen(request, "cook_banquet_menus")
+    if getattr(request.user, 'role', '') != 'cook':
+        return HttpResponseForbidden("Доступно только повару")
 
-    items = MenuItem.objects.filter(is_available=True).prefetch_related('ingredients__product', 'category').order_by('category__order', 'name')
+    # ВСЕ блюда из основного меню (как просили: абсолютно все)
+    items = (
+        MenuItem.objects
+        .all()
+        .prefetch_related('ingredients__product', 'category')
+        .order_by('category__order', 'name')
+    )
 
+    # Можно оставить: блюда без ингредиентов не дадим добавить (но показываем)
     not_available_ids = set()
     for it in items:
         if not has_ingredients(it):
@@ -536,30 +540,76 @@ def cook_banquet_menus(request):
     if request.method == 'POST':
         name = (request.POST.get('name') or '').strip()
         description = (request.POST.get('description') or '').strip()
-        is_active = bool(request.POST.get('is_active'))
+
         selected_ids = [i for i in request.POST.getlist('items') if i.isdigit()]
         selected_ids = [int(i) for i in selected_ids if int(i) not in not_available_ids]
 
         if not name:
             messages.error(request, 'Укажите название банкетного меню.')
         else:
-            if current is None:
-                current = BanquetMenu.objects.create(name=name, description=description, is_active=is_active)
-            else:
-                current.name = name
-                current.description = description
-                current.is_active = is_active
-                current.save()
+            bm = BanquetMenu.objects.create(
+                name=name,
+                description=description,
+                created_by=request.user,
+                status=BanquetMenu.STATUS_PENDING,
+                is_active=False,
+            )
+            bm.items.set(MenuItem.objects.filter(id__in=selected_ids))
 
-            current.items.set(MenuItem.objects.filter(id__in=selected_ids))
-            messages.success(request, 'Банкетное меню сохранено.')
-            return redirect(f"{reverse('cook_banquet_menus')}?menu_id={current.id}")
+            messages.success(request, 'Банкетное меню отправлено администратору на рассмотрение.')
+            return redirect('cook_banquet_menus')
 
-    menus = BanquetMenu.objects.all().prefetch_related('items').order_by('-updated_at')
+    # Внизу — только меню этого повара
+    my_menus = (
+        BanquetMenu.objects
+        .filter(created_by=request.user)
+        .prefetch_related('items')
+        .order_by('-created_at')
+    )
 
     return render(request, 'core/cook_banquet_menus.html', {
-        'menus': menus,
-        'current': current,
         'items': items,
         'not_available_ids': not_available_ids,
+        'my_menus': my_menus,
     })
+
+
+@login_required
+@_role_required('admin')
+def admin_banquet_menus(request):
+    """Админ: принимает/отклоняет банкетные меню, созданные поварами."""
+    if request.method == 'POST':
+        menu_id = (request.POST.get('menu_id') or '').strip()
+        action = (request.POST.get('action') or '').strip()
+
+        if menu_id.isdigit():
+            bm = get_object_or_404(BanquetMenu, id=int(menu_id))
+
+            if action == 'approve':
+                bm.status = BanquetMenu.STATUS_APPROVED
+                bm.is_active = True
+                bm.reviewed_by = request.user
+                bm.reviewed_at = timezone.now()
+                bm.save()
+                messages.success(request, f'Меню "{bm.name}" принято.')
+
+            elif action == 'reject':
+                bm.status = BanquetMenu.STATUS_REJECTED
+                bm.is_active = False
+                bm.reviewed_by = request.user
+                bm.reviewed_at = timezone.now()
+                bm.save()
+                messages.warning(request, f'Меню "{bm.name}" отклонено.')
+
+    pending = (
+        BanquetMenu.objects
+        .filter(status=BanquetMenu.STATUS_PENDING)
+        .select_related('created_by')
+        .prefetch_related('items')
+        .order_by('-created_at')
+    )
+
+    return render(request, 'core/admin_banquet_menus.html', {
+        'pending': pending,
+    })
+
