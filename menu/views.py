@@ -16,6 +16,8 @@ from .models import DailyMenu
 from .services import has_ingredients
 from .models import MenuItem, Category, Review, Order, OrderItem
 from .forms import ReviewForm, StockAdjustForm
+from menu.services import has_recipe, has_ingredients
+
 
 
 def _student_only(request):
@@ -77,6 +79,8 @@ def menu_list(request):
             selected_allergens = [a.strip() for a in raw.split(",") if a.strip()]
 
     items = MenuItem.objects.filter(is_available=True)
+    for item in items:
+        item.client_available = item.is_available and has_recipe(item) and has_ingredients(item, portions=1)
 
     # исключаем блюда с выбранными аллергенами
     for a in selected_allergens:

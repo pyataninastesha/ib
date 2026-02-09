@@ -47,21 +47,13 @@ def deduct_for_items(items):
     return [], changed
 
 
+def has_recipe(item) -> bool:
+    """Есть ли рецепт (ингредиенты связаны с блюдом)"""
+    return MenuItemIngredient.objects.filter(item=item).exists()
 
 def has_ingredients(item, portions=1):
-    ings = (MenuItemIngredient.objects
-            .select_related("product")
-            .filter(item=item))
-
-    if not ings.exists():
-        return False  # нет рецепта
-
-    portions = Decimal(str(portions))
-
-    for ing in ings:
-        need = Decimal(str(ing.amount)) * portions
-        have = Decimal(str(ing.product.stock or 0))
-        if have < need:
-            return False
-
-    return True
+    """
+    Для витрины/клиента: 'есть ингредиенты' = есть рецепт (связи ингредиентов).
+    НЕ проверяем склад, иначе у клиента всё станет 'нет в наличии', пока склад не заполнен.
+    """
+    return MenuItemIngredient.objects.filter(item=item).exists()

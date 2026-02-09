@@ -65,7 +65,6 @@
     </div>
 </div>
 
-
 {% for category, items in categories_with_items %}
     <h2 class="mt-4">
         {% if category.name == 'Завтраки' %}Закуски
@@ -88,29 +87,31 @@
 
                     <div class="card-body">
                         <h5 class="card-title">{{ item.name }}</h5>
-                        {% if request.user.is_authenticated and request.user.role != "student" %}
-                                <p class="card-text text-muted small">
-                                    {{ item.description|default:""|truncatechars:140 }}
-                                </p>
 
-                                <div class="mt-2 small">
-                                    <strong>Ингредиенты:</strong>
-                                    {% for ing in item.ingredients.all|slice:":6" %}
-                                        <span class="badge bg-light text-dark border me-1 mb-1">{{ ing.product.name }}</span>
-                                    {% empty %}
-                                        <span class="text-muted">не указаны</span>
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                <div class="mt-2 small">
-                                    <strong>Ингредиенты:</strong>
-                                    {% for ing in item.ingredients.all|slice:":8" %}
-                                        <span class="badge bg-light text-dark border me-1 mb-1">{{ ing.product.name }}</span>
-                                    {% empty %}
-                                        <span class="text-muted">не указаны</span>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
+                        {% if request.user.is_authenticated and request.user.role != "student" %}
+                            <p class="card-text text-muted small">
+                                {{ item.description|default:""|truncatechars:140 }}
+                            </p>
+
+                            <div class="mt-2 small">
+                                <strong>Ингредиенты:</strong>
+                                {% for ing in item.ingredients.all|slice:":6" %}
+                                    <span class="badge bg-light text-dark border me-1 mb-1">{{ ing.product.name }}</span>
+                                {% empty %}
+                                    <span class="text-muted">не указаны</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="mt-2 small">
+                                <strong>Ингредиенты:</strong>
+                                {% for ing in item.ingredients.all|slice:":8" %}
+                                    <span class="badge bg-light text-dark border me-1 mb-1">{{ ing.product.name }}</span>
+                                {% empty %}
+                                    <span class="text-muted">не указаны</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
                         {% if item.allergens %}
                             <div class="mt-2">
                                 <strong>Аллергены:</strong><br>
@@ -125,44 +126,43 @@
                         {% endif %}
                     </div>
 
-    <div class="card-footer bg-white d-flex justify-content-between align-items-center">
-    <strong>{{ item.price }} ₽</strong>
+                    <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+                        <strong>{{ item.price }} ₽</strong>
 
-    {% if user.is_authenticated and user.role == 'student' %}
+                        {% if user.is_authenticated and user.role == 'student' %}
 
-    <a href="{% url 'item_detail' item.id %}" class="btn btn-sm btn-outline-primary">
-        Карточка
-    </a>
+                            <a href="{% url 'item_detail' item.id %}" class="btn btn-sm btn-outline-primary">
+                                Карточка
+                            </a>
 
-    {% if item.id not in not_available_ids %}
-        <div class="d-flex align-items-center gap-2 cart-controls" data-item-id="{{ item.id }}">
-            <button type="button" class="btn btn-sm btn-outline-secondary cart-minus" title="Уменьшить">
-                <i class="bi bi-dash"></i>
-            </button>
+                            {# ✅ FIX: вместо not_available_ids используем item.client_available #}
+                            {% if item.client_available %}
+                                <div class="d-flex align-items-center gap-2 cart-controls" data-item-id="{{ item.id }}">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary cart-minus" title="Уменьшить">
+                                        <i class="bi bi-dash"></i>
+                                    </button>
 
-            <span class="cart-qty badge bg-secondary" style="min-width: 34px; text-align:center;">0</span>
+                                    <span class="cart-qty badge bg-secondary" style="min-width: 34px; text-align:center;">0</span>
 
-            <button type="button" class="btn btn-sm btn-outline-primary cart-plus" title="Добавить">
-                <i class="bi bi-plus"></i>
-            </button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary cart-plus" title="Добавить">
+                                        <i class="bi bi-plus"></i>
+                                    </button>
 
-            <i class="bi bi-cart3 text-primary" title="Корзина"></i>
-        </div>
-    {% else %}
-        <div class="text-danger d-flex align-items-center gap-2">
-            <i class="bi bi-x-circle-fill"></i>
-            <span class="fw-semibold">нет в наличии, появится позже</span>
-        </div>
-    {% endif %}
+                                    <i class="bi bi-cart3 text-primary" title="Корзина"></i>
+                                </div>
+                            {% else %}
+                                <div class="text-danger d-flex align-items-center gap-2">
+                                    <i class="bi bi-x-circle-fill"></i>
+                                    <span class="fw-semibold">нет в наличии, появится позже</span>
+                                </div>
+                            {% endif %}
 
-{% else %}
-    <a href="{% url 'item_detail' item.id %}" class="btn btn-sm btn-outline-primary">
-        Открыть карточку
-    </a>
-{% endif %}
-
-</div>
-
+                        {% else %}
+                            <a href="{% url 'item_detail' item.id %}" class="btn btn-sm btn-outline-primary">
+                                Открыть карточку
+                            </a>
+                        {% endif %}
+                    </div>
 
                 </div>
             </div>
@@ -205,22 +205,21 @@
     minusBtn.disabled = qty <= 0;
   }
 
-
   function updateHeaderCartCount(delta) {
-  const badge = document.getElementById('cart-count-badge');
-  if (!badge) return;
+    const badge = document.getElementById('cart-count-badge');
+    if (!badge) return;
 
-  const current = parseInt((badge.textContent || '0').trim(), 10) || 0;
-  const next = Math.max(0, current + delta);
+    const current = parseInt((badge.textContent || '0').trim(), 10) || 0;
+    const next = Math.max(0, current + delta);
 
-  badge.textContent = String(next);
+    badge.textContent = String(next);
 
-  if (next <= 0) {
-    badge.style.display = 'none';
-  } else {
-    badge.style.display = 'inline-block';
+    if (next <= 0) {
+      badge.style.display = 'none';
+    } else {
+      badge.style.display = 'inline-block';
+    }
   }
-}
 
   async function post(url) {
     const resp = await fetch(url, {
@@ -241,25 +240,22 @@
       setUI(block, initialQty);
 
       block.querySelector('.cart-plus').addEventListener('click', async () => {
-  const data = await post(`/menu/update-cart/${itemId}/increase/`);
-  const after = Number(data.quantity || 0);
-  setUI(block, after);
+        const data = await post(`/menu/update-cart/${itemId}/increase/`);
+        const after = Number(data.quantity || 0);
+        setUI(block, after);
+        updateHeaderCartCount(+1);
+      });
 
-  updateHeaderCartCount(+1);
-});
+      block.querySelector('.cart-minus').addEventListener('click', async () => {
+        const before = parseInt(block.querySelector('.cart-qty').textContent || '0', 10);
+        const data = await post(`/menu/update-cart/${itemId}/decrease/`);
+        const after = Number(data.quantity || 0);
+        setUI(block, after);
 
-block.querySelector('.cart-minus').addEventListener('click', async () => {
-  const before = parseInt(block.querySelector('.cart-qty').textContent || '0', 10);
-
-  const data = await post(`/menu/update-cart/${itemId}/decrease/`);
-  const after = Number(data.quantity || 0);
-  setUI(block, after);
-
-  if (before > after) {
-    updateHeaderCartCount(-1);
-  }
-});
-
+        if (before > after) {
+          updateHeaderCartCount(-1);
+        }
+      });
     });
   });
 </script>
