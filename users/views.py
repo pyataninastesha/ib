@@ -19,9 +19,9 @@ from .models import BalanceTopUp
 def _redirect_by_role(user):
     role = getattr(user, 'role', 'student')
     if role == 'cook':
-        return redirect('cook_banquet_menus')
+        return redirect('home')
     if role == 'admin':
-        return redirect('admin_dashboard')
+        return redirect('home')
     return redirect('home')
 
 

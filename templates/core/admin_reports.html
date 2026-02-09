@@ -4,64 +4,112 @@
 
 {% block content %}
 <div class="mb-3">
-    <h2 class="mb-0">Отчеты</h2>
-    <div class="text-muted">Сводные показатели на {{ today }}</div>
+  <h2 class="mb-0">Отчеты</h2>
+  <div class="text-muted">Сводные показатели на {{ today }}</div>
 </div>
 
 <div class="row g-3 mb-3">
-    <div class="col-12 col-md-6 col-lg-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <div class="text-muted">Заявок на закупку (в работе)</div>
-                <div class="fs-2 fw-bold">{{ pending_purchases }}</div>
-            </div>
-        </div>
+  <div class="col-12 col-md-6 col-lg-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-muted">Заявок на закупку (в работе)</div>
+        <div class="fs-2 fw-bold">{{ pending_purchases }}</div>
+      </div>
     </div>
+  </div>
 
-    <div class="col-12 col-md-6 col-lg-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <div class="text-muted">Активных абонементов сегодня</div>
-                <div class="fs-2 fw-bold">{{ active_subs }}</div>
-            </div>
+  <div class="col-12 col-md-6 col-lg-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-muted">Заказов за период</div>
+        <div class="fs-2 fw-bold">{{ orders_total }}</div>
+        <div class="small text-muted">
+          Банкетов: {{ banquet_orders }} · Обычных: {{ regular_orders }}
         </div>
+      </div>
     </div>
+  </div>
 
-    <div class="col-12 col-lg-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <div class="text-muted">Период отчета</div>
-                <div class="fw-bold">{{ start }} — {{ today }}</div>
-                <div class="small text-muted">Последние 7 дней</div>
-            </div>
+  <div class="col-12 col-md-6 col-lg-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-muted">Выручка за период</div>
+        <div class="fs-2 fw-bold">{{ revenue_total }} ₽</div>
+        <div class="small text-muted">
+          Банкеты: {{ banquet_revenue }} ₽ · Обычные: {{ regular_revenue }} ₽
         </div>
+      </div>
     </div>
+  </div>
+
+  <div class="col-12 col-md-6 col-lg-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-muted">Период отчета</div>
+        <div class="fw-bold">{{ start }} — {{ today }}</div>
+        <div class="small text-muted">Последние 7 дней</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title mb-3">Заказы и выручка (по дням)</h5>
+
+    <div class="table-responsive">
+      <table class="table table-striped align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Дата</th>
+            <th class="text-nowrap">Банкеты</th>
+            <th class="text-nowrap">Обычные заказы</th>
+            <th class="text-nowrap">Выручка</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>{{ row.date }}</td>
+              <td>{{ row.banquet_cnt }}</td>
+              <td>{{ row.regular_cnt }}</td>
+              <td class="fw-semibold">{{ row.revenue }} ₽</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <div class="card">
-    <div class="card-body">
-        <h5 class="card-title mb-3">Выдача и подтверждения питания (по дням)</h5>
+  <div class="card-body">
+    <h5 class="card-title mb-3">Топ блюд за период</h5>
 
-        <div class="table-responsive">
-            <table class="table table-striped align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th>Дата</th>
-                        <th class="text-nowrap">Выдано поваром</th>
-                        <th class="text-nowrap">Подтверждено учеником</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in rows %}
-                        <tr>
-                            <td>{{ row.date }}</td>
-                            <td>{{ row.issued }}</td>
-                            <td>{{ row.confirmed }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+    {% if top_items %}
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Блюдо</th>
+              <th style="width:160px;">Кол-во (шт)</th>
+              <th style="width:180px;">Сумма</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for it in top_items %}
+              <tr>
+                <td class="fw-semibold">{{ it.item__name }}</td>
+                <td>{{ it.qty }}</td>
+                <td class="fw-semibold">{{ it.sum|default:"0" }} ₽</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="text-muted">За выбранный период заказов нет.</div>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}

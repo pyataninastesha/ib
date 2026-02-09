@@ -4,13 +4,15 @@ import re
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count
+from django.db.models import Count, Sum, Q, F, DecimalField, ExpressionWrapper
+from django.db.models.functions import TruncDate
+
 from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-from menu.models import MenuItem, Product, Order, DailyMenu, BanquetMenu
+from menu.models import MenuItem, Product, Order, DailyMenu, BanquetMenu, OrderItem
 from menu.services import get_daily_items, deduct_for_items, has_ingredients
 from users.models import User, Subscription, MealReceipt, MealRequest
 from .models import PurchaseRequest
@@ -37,62 +39,93 @@ def _role_required(role_name):
 @login_required
 @_role_required('admin')
 def admin_dashboard(request):
-    today = timezone.localdate()
+    return redirect('home')
 
-    pending_purchases = PurchaseRequest.objects.filter(status="in_progress").count()
-    active_subs = Subscription.objects.filter(start_date__lte=today, end_date__gte=today).count()
-    issued_today = MealRequest.objects.filter(date=today, status=MealRequest.STATUS_ISSUED).count()
-    confirmed_today = MealReceipt.objects.filter(date=today).count()
-
-    return render(request, 'core/admin_dashboard.html', {
-        "today": today,
-        "pending_purchases": pending_purchases,
-        "active_subs": active_subs,
-        "issued_today": issued_today,
-        "confirmed_today": confirmed_today,
-    })
 
 
 @login_required
 @_role_required('admin')
 def admin_reports(request):
     mark_nav_seen(request, "admin_reports")
-    #отчеты
+
     today = timezone.localdate()
-    start = today - timedelta(days=6)  # 7 дней включая сегодня
+    start = today - timedelta(days=6)  # последние 7 дней включая сегодня
 
+    # заявки на закупку (оставляем как было)
     pending_purchases = PurchaseRequest.objects.filter(status="in_progress").count()
-    active_subs = Subscription.objects.filter(start_date__lte=today, end_date__gte=today).count()
 
-    issued_by_day = list(
-        MealRequest.objects
-        .filter(date__range=(start, today), status=MealRequest.STATUS_ISSUED)
-        .values("date")
-        .annotate(cnt=Count("id"))
-        .order_by("date")
-    )
-    confirmed_by_day = list(
-        MealReceipt.objects
-        .filter(date__range=(start, today))
-        .values("date")
-        .annotate(cnt=Count("id"))
-        .order_by("date")
+    # берём заказы за период (исключаем отменённые)
+    orders_qs = (
+        Order.objects
+        .filter(created_at__date__range=(start, today))
+        .exclude(status='cancelled')
     )
 
-    issued_map = {row["date"]: row["cnt"] for row in issued_by_day}
-    confirmed_map = {row["date"]: row["cnt"] for row in confirmed_by_day}
+    orders_total = orders_qs.count()
+    banquet_orders = orders_qs.filter(order_type='banquet').count()
+    regular_orders = orders_qs.filter(order_type='regular').count()
+
+    revenue_total = orders_qs.aggregate(s=Sum('total_amount'))['s'] or 0
+    banquet_revenue = orders_qs.filter(order_type='banquet').aggregate(s=Sum('total_amount'))['s'] or 0
+    regular_revenue = orders_qs.filter(order_type='regular').aggregate(s=Sum('total_amount'))['s'] or 0
+
+    # статистика по дням
+    by_day = (
+        orders_qs
+        .annotate(day=TruncDate('created_at'))
+        .values('day')
+        .annotate(
+            banquet_cnt=Count('id', filter=Q(order_type='banquet')),
+            regular_cnt=Count('id', filter=Q(order_type='regular')),
+            revenue=Sum('total_amount'),
+        )
+        .order_by('day')
+    )
+    by_day_map = {row['day']: row for row in by_day}
+
     days = [start + timedelta(days=i) for i in range(7)]
-    rows = [
-        {"date": d, "issued": issued_map.get(d, 0), "confirmed": confirmed_map.get(d, 0)}
-        for d in days
-    ]
+    rows = []
+    for d in days:
+        row = by_day_map.get(d, {})
+        rows.append({
+            "date": d,
+            "banquet_cnt": row.get("banquet_cnt", 0),
+            "regular_cnt": row.get("regular_cnt", 0),
+            "revenue": row.get("revenue", 0) or 0,
+        })
+
+    # ТОП блюд за период (по количеству)
+    line_total = ExpressionWrapper(
+        F('quantity') * F('price'),
+        output_field=DecimalField(max_digits=12, decimal_places=2)
+    )
+
+    top_items = (
+        OrderItem.objects
+        .filter(order__in=orders_qs)
+        .values('item__name')
+        .annotate(
+            qty=Sum('quantity'),
+            sum=line_total and Sum(line_total),
+        )
+        .order_by('-qty', 'item__name')[:10]
+    )
 
     return render(request, "core/admin_reports.html", {
         "today": today,
         "start": start,
         "pending_purchases": pending_purchases,
-        "active_subs": active_subs,
+
+        "orders_total": orders_total,
+        "banquet_orders": banquet_orders,
+        "regular_orders": regular_orders,
+
+        "revenue_total": revenue_total,
+        "banquet_revenue": banquet_revenue,
+        "regular_revenue": regular_revenue,
+
         "rows": rows,
+        "top_items": top_items,
     })
 
 def mark_nav_seen(request, key: str):
