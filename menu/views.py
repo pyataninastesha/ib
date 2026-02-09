@@ -73,35 +73,44 @@ def menu_list(request):
     search_query = (request.GET.get('search') or '').strip()
     selected_allergens = request.GET.getlist('allergen')
     allergen_filter_used = ('allergen_filter' in request.GET) or ('allergen' in request.GET)
+
     if (not allergen_filter_used) and request.user.is_authenticated and getattr(request.user, "role", "") == "student":
         raw = (getattr(request.user, "avoid_allergens", "") or "").strip()
         if raw:
             selected_allergens = [a.strip() for a in raw.split(",") if a.strip()]
 
-    items = MenuItem.objects.filter(is_available=True)
+    # 1) Собираем queryset с нужными связями (чтобы has_ingredients не делал лишних запросов)
+    qs = (MenuItem.objects.filter(is_available=True)
+          .select_related('category')
+          .prefetch_related('ingredients__product'))
+
+    # 2) Исключаем блюда с выбранными аллергенами
+    for a in selected_allergens:
+        qs = qs.exclude(allergens__contains=a)
+
+    # 3) Поиск
+    if search_query:
+        qs = qs.filter(Q(name__icontains=search_query) | Q(description__icontains=search_query))
+
+    # 4) ВАЖНО: превращаем в список, чтобы дальше не создавать новые queryset-объекты
+    items = list(qs)
+
+    # 5) Считаем доступность для клиента (для каждого блюда)
+    not_available_ids = set()
     for item in items:
         item.client_available = item.is_available and has_ingredients(item, portions=1)
+        if not item.client_available:
+            not_available_ids.add(item.id)
 
-    # исключаем блюда с выбранными аллергенами
-    for a in selected_allergens:
-        items = items.exclude(allergens__contains=a)
-
-    if search_query:
-        items = items.filter(Q(name__icontains=search_query) | Q(description__icontains=search_query))
-
+    # 6) Группируем по категориям ИЗ ЭТОГО ЖЕ СПИСКА (а не через .filter(category=...))
     categories_with_items = []
     for category in categories:
-        cat_items = items.filter(category=category)
-        if cat_items.exists():
+        cat_items = [i for i in items if i.category_id == category.id]
+        if cat_items:
             categories_with_items.append((category, cat_items))
 
     cart = request.session.get('cart', {})
     cart_quantities = {k: int(v.get('quantity', 0)) for k, v in cart.items()}
-
-    not_available_ids = set()
-    for item in items:
-        if not has_ingredients(item):
-            not_available_ids.add(item.id)
 
     return render(request, 'menu/menu_list.html', {
         'categories_with_items': categories_with_items,
@@ -385,7 +394,21 @@ def checkout(request):
 
 @login_required
 def order_history(request):
-    orders = Order.objects.filter(user=request.user).prefetch_related('orderitem_set__item').order_by('-created_at')
+    orders = (Order.objects
+              .filter(user=request.user)
+              .prefetch_related('orderitem_set__item')
+              .order_by('-created_at'))
+
+    # помечаем "банкет" / "обычный" для шаблона
+    for o in orders:
+        items = list(o.orderitem_set.all())  # уже prefetched
+        total_qty = sum(i.quantity for i in items)
+        unique_count = len(items)
+        max_qty = max((i.quantity for i in items), default=0)
+
+        # критерии банкета (можешь менять пороги)
+        o.is_banquet = (total_qty >= 10) or (unique_count >= 6) or (max_qty >= 5)
+
     mark_nav_seen(request, "order_history")
     return render(request, 'menu/order_history.html', {'orders': orders})
 

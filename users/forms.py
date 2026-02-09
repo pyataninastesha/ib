@@ -69,7 +69,9 @@ class ProfileUpdateForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ('email', 'phone', 'allergies', 'avoid_allergens', 'food_preferences', 'first_name', 'last_name')
+        # В профиле клиента оставляем только базовые поля.
+        # Аллергии/предпочтения не редактируются из профиля.
+        fields = ('email', 'phone', 'first_name', 'last_name')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -77,39 +79,3 @@ class ProfileUpdateForm(forms.ModelForm):
         for field in self.fields.values():
             existing = field.widget.attrs.get('class', '')
             field.widget.attrs['class'] = (existing + ' form-control').strip()
-
-        # чекбоксы не должны получать form-control
-        self.fields['avoid_allergens'].widget.attrs.pop('class', None)
-
-        if 'allergies' in self.fields:
-            self.fields['allergies'].widget.attrs.update({
-                'rows': 3,
-                'style': 'resize: vertical;'
-            })
-
-        if 'food_preferences' in self.fields:
-            self.fields['food_preferences'].widget.attrs.update({
-                'rows': 3,
-                'style': 'resize: vertical;'
-            })
-
-        # начальное значение из модели (csv)
-        if self.instance and self.instance.pk:
-            current = (self.instance.avoid_allergens or '').split(',')
-            current = [c.strip() for c in current if c.strip()]
-            self.initial['avoid_allergens'] = current
-
-        role = getattr(self.instance, 'role', 'student')
-        if role != 'student':
-            for f in ('allergies', 'avoid_allergens', 'food_preferences'):
-                if f in self.fields:
-                    self.fields.pop(f)
-
-    def save(self, commit=True):
-        user = super().save(commit=False)
-        if 'avoid_allergens' in self.cleaned_data:
-            avoid = self.cleaned_data.get('avoid_allergens', []) or []
-            user.avoid_allergens = ','.join(avoid)
-        if commit:
-            user.save()
-        return user

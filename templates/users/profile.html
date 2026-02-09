@@ -17,7 +17,9 @@
               <i class="bi bi-person-bounding-box display-1 text-primary"></i>
             </div>
             <h5 class="mb-1">{{ user.username }}</h5>
-            <p class="text-muted mb-0">Пользователь с {{ user.date_joined|date:"d.m.Y" }}</p>
+            <p class="text-muted mb-0">
+              Пользователь с {{ user.date_joined|date:"d.m.Y" }}
+            </p>
           </div>
 
           <div class="col-md-9">
@@ -29,7 +31,9 @@
                       <i class="bi bi-wallet2 display-6 text-success mb-3"></i>
                       <h5>Баланс</h5>
                       <h3 class="text-success">{{ user.balance }} ₽</h3>
-                      <a href="{% url 'wallet' %}" class="btn btn-sm btn-outline-success">Пополнить</a>
+                      <a href="{% url 'wallet' %}" class="btn btn-sm btn-outline-success">
+                        Пополнить
+                      </a>
                     </div>
                   </div>
                 </div>
@@ -40,7 +44,9 @@
                       <i class="bi bi-cart-check display-6 text-primary mb-3"></i>
                       <h5>Заказы</h5>
                       <h3 class="text-primary">{{ user.order_set.count }}</h3>
-                      <a href="{% url 'order_history' %}" class="btn btn-sm btn-outline-primary">История</a>
+                      <a href="{% url 'order_history' %}" class="btn btn-sm btn-outline-primary">
+                        История
+                      </a>
                     </div>
                   </div>
                 </div>
@@ -83,24 +89,9 @@
                 </div>
               </div>
 
-              {# Ученические поля — скрываем для повара #}
-              {% if is_student %}
-                <div class="mb-3">
-                  <label class="form-label">Аллергены, которые нужно исключить</label>
-                  <div class="border rounded p-2">
-                    {{ form.avoid_allergens }}
-                  </div>
-                  <div class="form-text">Мы будем скрывать блюда с выбранными аллергенами в меню по умолчанию.</div>
-                </div>
-
-                <div class="mb-3">
-                  <label for="id_food_preferences" class="form-label">Пищевые предпочтения</label>
-                  {{ form.food_preferences }}
-                  <div class="form-text">Например: «не люблю острое», «без сахара», «больше овощей».</div>
-                </div>
-              {% endif %}
-
-              <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+              <button type="submit" class="btn btn-primary">
+                Сохранить изменения
+              </button>
             </form>
           </div>
         </div>

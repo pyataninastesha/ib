@@ -17,6 +17,7 @@
           <div class="card-header bg-white d-flex flex-wrap align-items-center justify-content-between gap-2">
             <div class="d-flex flex-wrap align-items-center gap-3">
               <div class="fw-bold">#{{ order.id }}</div>
+
               <div class="text-muted small">
                 <i class="bi bi-clock"></i>
                 {{ order.created_at|date:"d.m.Y H:i" }}
@@ -34,6 +35,12 @@
                 {% elif order.status == 'completed' %}Получен
                 {% else %}{{ order.status }}{% endif %}
               </span>
+
+              {% if order.is_banquet %}
+                <span class="badge bg-primary">Банкет</span>
+              {% else %}
+                <span class="badge bg-light text-dark border">Обычный</span>
+              {% endif %}
             </div>
 
             <div class="d-flex align-items-center gap-2 ms-auto">
@@ -52,14 +59,23 @@
 
           <div class="card-body">
             <!-- Краткий состав -->
-            <div class="text-muted small mb-2">Состав заказа:</div>
-            <div class="d-flex flex-wrap gap-2">
-              {% for oi in order.orderitem_set.all %}
-                <span class="badge bg-light text-dark border">
-                  {{ oi.quantity }} × {{ oi.item.name }}
-                </span>
-              {% endfor %}
-            </div>
+            {% if order.is_banquet %}
+              <div class="text-muted small mb-2">Состав банкета:</div>
+              <div class="d-flex flex-wrap gap-2">
+                {% for oi in order.orderitem_set.all %}
+                  <span class="badge bg-light text-dark border">
+                    {{ oi.quantity }} × {{ oi.item.name }}
+                  </span>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="text-muted small mb-2">Состав заказа:</div>
+              <ul class="mb-0">
+                {% for oi in order.orderitem_set.all %}
+                  <li>{{ oi.quantity }} × {{ oi.item.name }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
 
             <!-- Детали -->
             <div class="collapse mt-3" id="order_{{ order.id }}">
