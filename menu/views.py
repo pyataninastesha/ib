@@ -238,55 +238,6 @@ def view_cart(request):
 
 
 @login_required
-def cart_increase(request, item_id):
-    forbid = _student_only(request)
-    if forbid:
-        return forbid
-    cart = request.session.get('cart', {})
-    key = str(item_id)
-
-    if key not in cart:
-        item = get_object_or_404(MenuItem, id=item_id)
-        cart[key] = {'quantity': 1, 'price': str(item.price)}
-    else:
-        cart[key]['quantity'] = int(cart[key].get('quantity', 0)) + 1
-
-    request.session['cart'] = cart
-    qty = int(cart[key]['quantity'])
-
-    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.method == 'POST':
-        return JsonResponse({'ok': True, 'item_id': item_id, 'quantity': qty})
-
-    return redirect(request.META.get('HTTP_REFERER', 'menu_list'))
-
-
-@login_required
-def cart_decrease(request, item_id):
-    forbid = _student_only(request)
-    if forbid:
-        return forbid
-    cart = request.session.get('cart', {})
-    key = str(item_id)
-
-    if key not in cart:
-        qty = 0
-    else:
-        qty = int(cart[key].get('quantity', 0)) - 1
-        if qty <= 0:
-            del cart[key]
-            qty = 0
-        else:
-            cart[key]['quantity'] = qty
-
-    request.session['cart'] = cart
-
-    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.method == 'POST':
-        return JsonResponse({'ok': True, 'item_id': item_id, 'quantity': qty})
-
-    return redirect(request.META.get('HTTP_REFERER', 'menu_list'))
-
-
-@login_required
 def checkout(request):
     forbid = _student_only(request)
     if forbid:
@@ -412,25 +363,6 @@ def order_history(request):
     mark_nav_seen(request, "order_history")
     return render(request, 'menu/order_history.html', {'orders': orders})
 
-
-@login_required
-def mark_received(request, order_id):
-    order = get_object_or_404(Order, id=order_id, user=request.user)
-
-    if request.method != 'POST':
-        return redirect('order_history')
-
-    if order.status != 'ready':
-        messages.warning(request, 'Отметить получение можно только когда заказ "Готов к выдаче".')
-        return redirect('order_history')
-
-    order.status = 'completed'
-    order.received_by_student = True
-    order.received_at = timezone.now()
-    order.save(update_fields=['status', 'received_by_student', 'received_at', 'updated_at'])
-
-    messages.success(request, f'Заказ #{order.id} отмечен как полученный.')
-    return redirect('order_history')
 
 
 def _role_required(role_name):
@@ -576,40 +508,6 @@ def stock_list(request):
         "q": q,
     })
 
-
-
-@login_required
-@_role_required("cook")
-def stock_adjust(request, product_id, action):
-    product = get_object_or_404(Product, id=product_id)
-
-    if request.method == "POST":
-        form = StockAdjustForm(request.POST)
-        if form.is_valid():
-            amount = form.cleaned_data["amount"]
-
-            if action == "add":
-                product.stock = (product.stock or Decimal("0")) + amount
-                product.save(update_fields=["stock"])
-                messages.success(request, f"Пополнено: {product.name} +{amount} {product.unit}")
-            elif action == "remove":
-                product.stock = (product.stock or Decimal("0")) - amount
-                if product.stock < 0:
-                    product.stock = Decimal("0")
-                product.save(update_fields=["stock"])
-                messages.success(request, f"Списано: {product.name} -{amount} {product.unit}")
-            else:
-                messages.error(request, "Неверное действие")
-
-            return redirect("stock_list")
-    else:
-        form = StockAdjustForm()
-
-    return render(request, "cook/stock_adjust.html", {
-        "product": product,
-        "action": action,
-        "form": form,
-    })
 
 @login_required
 @_role_required("cook")

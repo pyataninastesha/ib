@@ -36,12 +36,6 @@ def _role_required(role_name):
 
 
 
-@login_required
-@_role_required('admin')
-def admin_dashboard(request):
-    return redirect('home')
-
-
 
 @login_required
 @_role_required('admin')
@@ -460,13 +454,6 @@ def admin_purchase(request):
         "items": items,
         "done_items": done_items,
     })
-
-
-
-@login_required
-@_role_required('cook')
-def cook_daily_menu(request):
-    return redirect('cook_banquet_menus')
 
 
 @login_required
