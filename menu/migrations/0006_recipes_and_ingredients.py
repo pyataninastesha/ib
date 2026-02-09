@@ -83,6 +83,9 @@ def seed(apps, schema_editor):
             MenuItemIngredient.objects.get_or_create(item=item, product=prod, defaults={"amount": amount})
 
 class Migration(migrations.Migration):
+    # Эта миграция использует модель Product (apps.get_model('menu','Product')).
+    # Product создаётся в параллельной миграции 0006_product_alter_menuitem_allergens_menuitemingredient.
+    # Поэтому здесь зависим от неё, иначе на чистой БД миграция упадёт с LookupError.
     dependencies = [
         ("menu", "0006_product_alter_menuitem_allergens_menuitemingredient"),
     ]

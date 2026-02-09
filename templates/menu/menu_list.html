@@ -67,7 +67,11 @@
 
 
 {% for category, items in categories_with_items %}
-    <h2 class="mt-4">{{ category.name }}</h2>
+    <h2 class="mt-4">
+        {% if category.name == 'Завтраки' %}Закуски
+        {% elif category.name == 'Обеды' %}Основные блюда
+        {% else %}{{ category.name }}{% endif %}
+    </h2>
 
     <div class="row">
         {% for item in items %}

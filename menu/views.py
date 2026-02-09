@@ -25,7 +25,9 @@ def _student_only(request):
 
 
 def ensure_default_menu():
-    marker_name = 'Борщ'
+    # Если данные уже засеяны миграциями (0004/0005), ничего не добавляем.
+    # Берём маркер из исходного набора блюд.
+    marker_name = 'Гречка с курицей в томатном соусе'
     if MenuItem.objects.filter(name=marker_name).exists():
         return
 

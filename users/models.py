@@ -12,16 +12,15 @@ def _today():
 
 class User(AbstractUser):
     ROLE_CHOICES = (
-        ('student', 'Ученик'),
-        ('cook', 'Повар'),
-        ('admin', 'Администратор'),
+        ("student", "Клиент"),
+        ("cook", "Шеф / кухня"),
+        ("admin", "Менеджер кейтеринга"),
     )
 
     role = models.CharField(
         max_length=20,
         choices=ROLE_CHOICES,
-        default='student',
-        verbose_name='Роль'
+        default="student",
     )
 
     phone = models.CharField(max_length=15, blank=True, verbose_name='Телефон')
