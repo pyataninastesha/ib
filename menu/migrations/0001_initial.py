@@ -85,7 +85,7 @@ class Migration(migrations.Migration):
                 ('guests_count', models.IntegerField(blank=True, null=True, verbose_name='Количество гостей')),
                 ('total_amount', models.DecimalField(decimal_places=2, max_digits=10, verbose_name='Общая сумма')),
                 ('status', models.CharField(choices=[('pending', 'В обработке'), ('confirmed', 'Подтвержден'), ('preparing', 'Готовится'), ('ready', 'Готов к выдаче'), ('completed', 'Завершен'), ('cancelled', 'Отменен')], default='pending', max_length=20, verbose_name='Статус')),
-                ('received_by_student', models.BooleanField(default=False, verbose_name='Получено учеником')),
+                ('received_by_student', models.BooleanField(default=False, verbose_name='Получено клиентом')),
                 ('received_at', models.DateTimeField(blank=True, null=True, verbose_name='Дата получения')),
                 ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')),
                 ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Дата обновления')),

@@ -6,7 +6,6 @@ from decimal import Decimal, InvalidOperation
 
 
 def _today():
-    """Локальная дата (Москва), удобно для абонемента/получений."""
     return timezone.localdate()
 
 
@@ -37,7 +36,6 @@ class User(AbstractUser):
     food_preferences = models.TextField(blank=True, verbose_name='Пищевые предпочтения')
 
     def add_to_balance(self, amount):
-        """Безопасно пополнить баланс (Decimal)."""
         try:
             amount = Decimal(str(amount))
         except (InvalidOperation, TypeError, ValueError):
@@ -51,7 +49,6 @@ class User(AbstractUser):
         return True
 
     def deduct_from_balance(self, amount):
-        """Списать средства, если хватает (Decimal)."""
         try:
             amount = Decimal(str(amount))
         except (InvalidOperation, TypeError, ValueError):
@@ -128,15 +125,15 @@ class MealReceipt(models.Model):
 
 
 class MealRequest(models.Model):
-    STATUS_REQUESTED = 'requested'   # ученик нажал "Запросить"
-    STATUS_ISSUED = 'issued'         # повар выдал
-    STATUS_CONFIRMED = 'confirmed'   # ученик подтвердил
-    STATUS_CANCELLED = 'cancelled'   # ученик отменил заявку (если передумал)
+    STATUS_REQUESTED = 'requested'
+    STATUS_ISSUED = 'issued'
+    STATUS_CONFIRMED = 'confirmed'
+    STATUS_CANCELLED = 'cancelled'
 
     STATUS_CHOICES = [
         (STATUS_REQUESTED, 'Запрошено'),
         (STATUS_ISSUED, 'Выдано поваром'),
-        (STATUS_CONFIRMED, 'Подтверждено учеником'),
+        (STATUS_CONFIRMED, 'Подтверждено клиентом'),
         (STATUS_CANCELLED, 'Отменено'),
     ]
 

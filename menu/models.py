@@ -171,7 +171,7 @@ class Order(models.Model):
     guests_count = models.IntegerField(blank=True, null=True, verbose_name='Количество гостей')
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Общая сумма')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='Статус')
-    received_by_student = models.BooleanField(default=False, verbose_name='Получено учеником')
+    received_by_student = models.BooleanField(default=False, verbose_name='Получено клиентом')
     received_at = models.DateTimeField(blank=True, null=True, verbose_name='Дата получения')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')

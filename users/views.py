@@ -40,7 +40,7 @@ def register_view(request):
 
 def login_view(request):
     if getattr(request.user, 'role', 'student') != 'student':
-        return HttpResponseForbidden('Пополнение баланса доступно только ученикам')
+        return HttpResponseForbidden('Пополнение баланса доступно только клиентам')
     if request.method == 'POST':
         form = CustomAuthenticationForm(request, data=request.POST)
         if form.is_valid():
@@ -109,7 +109,7 @@ def wallet_view(request):
 
         # (опционально) запрет повару/админу пополнять баланс
         if getattr(request.user, 'role', 'student') != 'student':
-            messages.error(request, 'Пополнение доступно только ученикам')
+            messages.error(request, 'Пополнение доступно только клиентам')
             return redirect('wallet')
 
         request.user.balance = (request.user.balance or Decimal('0')) + amount
@@ -298,7 +298,7 @@ def receive_meal_view(request):
     mark_nav_seen(request, "receive_meal")
     # только ученик
     if getattr(request.user, "role", "student") != "student":
-        messages.error(request, "Раздел доступен только ученику.")
+        messages.error(request, "Раздел доступен только клиенту.")
         return redirect("menu_list")
 
     today = timezone.localdate()
@@ -351,7 +351,7 @@ def receive_meal_view(request):
 @login_required
 def request_meal(request):
     if getattr(request.user, 'role', 'student') != 'student':
-        return HttpResponseForbidden("Доступно только ученику.")
+        return HttpResponseForbidden("Доступно только клиенту.")
     if request.method != 'POST':
         return redirect('receive_meal')
 
@@ -397,7 +397,7 @@ def request_meal(request):
 @login_required
 def cancel_meal_request(request, request_id):
     if getattr(request.user, 'role', 'student') != 'student':
-        return HttpResponseForbidden("Доступно только ученику.")
+        return HttpResponseForbidden("Доступно только клиенту.")
     if request.method != 'POST':
         return redirect('receive_meal')
 
@@ -415,7 +415,7 @@ def cancel_meal_request(request, request_id):
 @login_required
 def confirm_meal(request, request_id):
     if getattr(request.user, 'role', 'student') != 'student':
-        return HttpResponseForbidden("Доступно только ученику.")
+        return HttpResponseForbidden("Доступно только клиенту.")
     if request.method != 'POST':
         return redirect('receive_meal')
 
@@ -459,9 +459,8 @@ def get_active_subscriptions(user):
 
 @login_required
 def subscription_cancel(request, sub_id: int):
-    """Отменить абонемент: ставим end_date = вчера (мягкая отмена)."""
     if getattr(request.user, 'role', 'student') != 'student':
-        return HttpResponseForbidden('Доступно только ученику')
+        return HttpResponseForbidden('Доступно только клиенту')
 
     if request.method != 'POST':
         return redirect('subscription')

@@ -152,7 +152,6 @@ def cook_issue(request):
         .order_by('user__username', '-start_date')
     )
 
-    # собираем список учеников (по одному на пользователя) + какие приемы пищи доступны
     subs_by_user = {}
     for sub in subs_today:
         uid = sub.user_id
@@ -230,7 +229,7 @@ def cook_issue(request):
             ).exists()
 
             if not has_sub:
-                messages.error(request, "У ученика нет активного абонемента на этот тип питания на сегодня.")
+                messages.error(request, "У клиента нет активного абонемента на этот тип питания на сегодня.")
                 return redirect("cook_issue")
 
             # Создаём/берём заявку
@@ -244,9 +243,9 @@ def cook_issue(request):
                 }
             )
 
-            # Нельзя повторно "выдать", если уже подтверждено учеником
+            # Нельзя повторно "выдать", если уже подтверждено
             if mr.status == MealRequest.STATUS_CONFIRMED:
-                messages.warning(request, "Ученик уже подтвердил получение. Повторная выдача невозможна.")
+                messages.warning(request, "Клиент уже подтвердил получение. Повторная выдача невозможна.")
                 return redirect("cook_issue")
 
             # Списываем продукты один раз

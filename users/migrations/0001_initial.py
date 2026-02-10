@@ -66,7 +66,7 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('date', models.DateField()),
                 ('meal_type', models.CharField(choices=[('breakfast', 'Завтрак'), ('lunch', 'Обед')], max_length=20)),
-                ('status', models.CharField(choices=[('requested', 'Запрошено'), ('issued', 'Выдано поваром'), ('confirmed', 'Подтверждено учеником'), ('cancelled', 'Отменено')], default='requested', max_length=20)),
+                ('status', models.CharField(choices=[('requested', 'Запрошено'), ('issued', 'Выдано поваром'), ('confirmed', 'Подтверждено клиентом'), ('cancelled', 'Отменено')], default='requested', max_length=20)),
                 ('requested_at', models.DateTimeField(auto_now_add=True)),
                 ('issued_at', models.DateTimeField(blank=True, null=True)),
                 ('confirmed_at', models.DateTimeField(blank=True, null=True)),

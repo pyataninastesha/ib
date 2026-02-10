@@ -22,10 +22,6 @@ def read_bytes(path: str) -> bytes:
 
 
 def fix_requirements_encoding():
-    """
-    У вас requirements.txt иногда бывает UTF-16.
-    Перекодируем в UTF-8 только если это действительно UTF-16.
-    """
     raw = read_bytes(REQ_FILE)
     try:
         raw.decode("utf-8")
@@ -58,11 +54,6 @@ def sha256_of_file(path: str) -> str:
 
 
 def needs_install() -> bool:
-    """
-    Ставим зависимости только если:
-    - нет файла с хэшем, или
-    - requirements.txt поменялся с прошлого раза
-    """
     if not os.path.exists(REQ_HASH_FILE):
         return True
 

@@ -22,9 +22,73 @@ from menu.services import has_recipe, has_ingredients
 
 def _student_only(request):
     if getattr(request.user, 'role', 'student') != 'student':
-        return HttpResponseForbidden("Корзина доступна только ученику.")
+        return HttpResponseForbidden("Корзина доступна только клиенту.")
     return None
 
+from django.http import JsonResponse, HttpResponseBadRequest
+from django.shortcuts import get_object_or_404
+from django.contrib.auth.decorators import login_required
+
+def _cart_total_count(cart: dict) -> int:
+    total = 0
+    for v in (cart or {}).values():
+        try:
+            total += int(v.get('quantity', 0))
+        except Exception:
+            continue
+    return max(0, total)
+
+@login_required
+def update_cart(request, item_id, action):
+    forbid = _student_only(request)
+    if forbid:
+        return forbid
+
+    if request.method != 'POST':
+        return HttpResponseBadRequest('POST required')
+
+    action = (action or '').lower()
+    if action not in {'increase', 'decrease'}:
+        return HttpResponseBadRequest('Unknown action')
+
+    item = get_object_or_404(MenuItem, id=item_id)
+
+    cart = request.session.get('cart', {})
+    key = str(item_id)
+    entry = cart.get(key, {'quantity': 0, 'price': str(item.price)})
+    qty_before = int(entry.get('quantity', 0) or 0)
+
+    if action == 'increase':
+        if not has_ingredients(item):
+            return JsonResponse(
+                {
+                    'ok': False,
+                    'error': 'Недостаточно ингредиентов',
+                    'quantity': qty_before,
+                    'cart_count': _cart_total_count(cart),
+                },
+                status=400
+            )
+        qty_after = qty_before + 1
+        entry['quantity'] = qty_after
+        entry.setdefault('price', str(item.price))
+        cart[key] = entry
+
+    else:  # decrease
+        qty_after = max(0, qty_before - 1)
+        if qty_after <= 0:
+            cart.pop(key, None)
+        else:
+            entry['quantity'] = qty_after
+            cart[key] = entry
+
+    request.session['cart'] = cart
+    return JsonResponse({
+        'ok': True,
+        'item_id': item_id,
+        'quantity': qty_after,
+        'cart_count': _cart_total_count(cart),
+    })
 
 def ensure_default_menu():
     # Если данные уже засеяны миграциями (0004/0005), ничего не добавляем.
@@ -143,7 +207,7 @@ def item_detail(request, item_id):
 @login_required
 def add_review(request, item_id):
     if getattr(request.user, 'role', 'student') != 'student':
-        messages.error(request, 'Только ученики могут оставлять отзывы.')
+        messages.error(request, 'Только клиенты могут оставлять отзывы.')
         return redirect('item_detail', item_id=item_id)
 
     item = get_object_or_404(MenuItem, id=item_id)

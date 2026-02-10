@@ -135,7 +135,7 @@
                                 Карточка
                             </a>
 
-                            {# ✅ НАЛИЧИЕ: используем item.client_available (а не is_available и не not_available_ids) #}
+                            {# ✅ НАЛИЧИЕ: используем item.client_available #}
                             {% if item.client_available %}
                                 <div class="d-flex align-items-center gap-2 cart-controls" data-item-id="{{ item.id }}">
                                     <button type="button" class="btn btn-sm btn-outline-secondary cart-minus" title="Уменьшить">
@@ -205,20 +205,12 @@
     minusBtn.disabled = qty <= 0;
   }
 
-  function updateHeaderCartCount(delta) {
+  function setHeaderCartCount(count) {
     const badge = document.getElementById('cart-count-badge');
     if (!badge) return;
-
-    const current = parseInt((badge.textContent || '0').trim(), 10) || 0;
-    const next = Math.max(0, current + delta);
-
+    const next = Math.max(0, parseInt(String(count || 0), 10) || 0);
     badge.textContent = String(next);
-
-    if (next <= 0) {
-      badge.style.display = 'none';
-    } else {
-      badge.style.display = 'inline-block';
-    }
+    badge.style.display = next <= 0 ? 'none' : 'inline-block';
   }
 
   async function post(url) {
@@ -229,8 +221,14 @@
         'X-CSRFToken': csrftoken,
       },
     });
-    if (!resp.ok) throw new Error('Request failed');
-    return await resp.json();
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      // если сервер вернул ok:false / error — покажем причину
+      const msg = data && data.error ? data.error : 'Не удалось обновить корзину';
+      alert(msg);
+      throw new Error(msg);
+    }
+    return data;
   }
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -243,18 +241,14 @@
         const data = await post(`/menu/update-cart/${itemId}/increase/`);
         const after = Number(data.quantity || 0);
         setUI(block, after);
-        updateHeaderCartCount(+1);
+        if (typeof data.cart_count !== 'undefined') setHeaderCartCount(data.cart_count);
       });
 
       block.querySelector('.cart-minus').addEventListener('click', async () => {
-        const before = parseInt(block.querySelector('.cart-qty').textContent || '0', 10);
         const data = await post(`/menu/update-cart/${itemId}/decrease/`);
         const after = Number(data.quantity || 0);
         setUI(block, after);
-
-        if (before > after) {
-          updateHeaderCartCount(-1);
-        }
+        if (typeof data.cart_count !== 'undefined') setHeaderCartCount(data.cart_count);
       });
     });
   });
