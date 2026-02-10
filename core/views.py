@@ -1,12 +1,10 @@
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 import re
-
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Sum, Q, F, DecimalField, ExpressionWrapper
 from django.db.models.functions import TruncDate
-
 from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
@@ -33,8 +31,6 @@ def _role_required(role_name):
             return view_func(request, *args, **kwargs)
         return _wrapped
     return decorator
-
-
 
 
 @login_required
@@ -88,7 +84,7 @@ def admin_reports(request):
             "revenue": row.get("revenue", 0) or 0,
         })
 
-    # ТОП блюд за период (по количеству)
+    # топ блюд за период
     line_total = ExpressionWrapper(
         F('quantity') * F('price'),
         output_field=DecimalField(max_digits=12, decimal_places=2)
@@ -122,11 +118,13 @@ def admin_reports(request):
         "top_items": top_items,
     })
 
+
 def mark_nav_seen(request, key: str):
     seen = request.session.get("nav_seen", {})
     seen[key] = timezone.now().isoformat()
     request.session["nav_seen"] = seen
     request.session.modified = True
+
 
 @login_required
 def cook_issue(request):
@@ -256,7 +254,7 @@ def cook_issue(request):
                     return redirect("cook_issue")
                 mr.stock_deducted = True
 
-            # 5) Фиксируем выдачу
+            # Фиксируем выдачу
             mr.status = MealRequest.STATUS_ISSUED
             mr.issued_by = request.user
             mr.issued_at = timezone.now()
@@ -417,7 +415,6 @@ def admin_purchase(request):
         stock_field = Product._meta.get_field("stock")
         dp = getattr(stock_field, "decimal_places", 0) or 0
 
-        # округление до нужных decimal_places
         exp = Decimal("1").scaleb(-dp)
         try:
             qty = qty.quantize(exp)
@@ -457,12 +454,11 @@ def admin_purchase(request):
 
 @login_required
 def cook_banquet_menus(request):
-    """Повар: создаёт банкетные меню из основного меню и отправляет админу на согласование."""
     mark_nav_seen(request, "cook_banquet_menus")
     if getattr(request.user, 'role', '') != 'cook':
         return HttpResponseForbidden("Доступно только повару")
 
-    # ВСЕ блюда из основного меню (как просили: абсолютно все)
+    # все блюда из основного меню
     items = (
         MenuItem.objects
         .all()
@@ -470,7 +466,6 @@ def cook_banquet_menus(request):
         .order_by('category__order', 'name')
     )
 
-    # Можно оставить: блюда без ингредиентов не дадим добавить (но показываем)
     not_available_ids = set()
     for it in items:
         if not has_ingredients(it):
@@ -498,7 +493,6 @@ def cook_banquet_menus(request):
             messages.success(request, 'Банкетное меню отправлено администратору на рассмотрение.')
             return redirect('cook_banquet_menus')
 
-    # Внизу — только меню этого повара
     my_menus = (
         BanquetMenu.objects
         .filter(created_by=request.user)
@@ -516,7 +510,6 @@ def cook_banquet_menus(request):
 @login_required
 @_role_required('admin')
 def admin_banquet_menus(request):
-    """Админ: принимает/отклоняет банкетные меню, созданные поварами."""
     if request.method == 'POST':
         menu_id = (request.POST.get('menu_id') or '').strip()
         action = (request.POST.get('action') or '').strip()

@@ -107,7 +107,7 @@ def wallet_view(request):
             messages.error(request, 'Максимальная сумма пополнения — 5000 ₽')
             return redirect('wallet')
 
-        # (опционально) запрет повару/админу пополнять баланс
+        # запрет повару/админу пополнять баланс
         if getattr(request.user, 'role', 'student') != 'student':
             messages.error(request, 'Пополнение доступно только клиентам')
             return redirect('wallet')
@@ -129,7 +129,6 @@ def wallet_view(request):
 
 @login_required
 def banquet_purchase_view(request):
-    """Покупка банкета: выбор готового меню, даты и количества гостей."""
     if getattr(request.user, 'role', 'student') != 'student':
         return HttpResponseForbidden("Доступно только клиенту.")
 
@@ -189,7 +188,7 @@ def banquet_purchase_view(request):
                 guests_count=guests_count,
             )
 
-            # каждая позиция — по числу гостей (условно “порции”)
+            # каждая позиция — по числу гостей
             for item in selected_menu.items.all():
                 OrderItem.objects.create(
                     order=order,

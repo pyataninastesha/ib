@@ -97,7 +97,6 @@ def pick_port(preferred: int) -> int:
     for p in range(preferred + 1, preferred + 50):
         if is_port_free(p):
             return p
-    # fallback
     return 0
 
 

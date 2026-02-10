@@ -49,13 +49,13 @@ class DailyMenuForm(forms.ModelForm):
         breakfast_cat = Category.objects.filter(order=1).first()
         lunch_cat = Category.objects.filter(order=2).first()
 
-        # 2) пробуем по названию
+        # пробуем по названию
         if not breakfast_cat:
             breakfast_cat = Category.objects.filter(name__icontains="завтр").first()
         if not lunch_cat:
             lunch_cat = Category.objects.filter(name__icontains="обед").first()
 
-        # 3) берём первые две категории
+        # берём первые две категории
         cats = list(Category.objects.all().order_by("order", "id"))
         if not breakfast_cat and len(cats) >= 1:
             breakfast_cat = cats[0]

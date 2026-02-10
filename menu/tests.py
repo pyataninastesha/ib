@@ -33,7 +33,6 @@ class MenuModelTests(TestCase):
         self.assertEqual(str(self.category), 'Основные блюда')
 
     def test_menu_item_creation(self):
-        """Тест создания блюда"""
         self.assertEqual(self.item.name, 'Плов')
         self.assertEqual(self.item.price, 250)
         self.assertTrue(self.item.is_available)
@@ -51,7 +50,6 @@ class MenuModelTests(TestCase):
         self.assertEqual(str(review), f'{self.user} - {self.item} (5)')
 
     def test_order_creation(self):
-        """Тест создания заказа"""
         order = Order.objects.create(
             user=self.user,
             total_amount=500,
@@ -100,9 +98,7 @@ class MenuViewsTests(TestCase):
     def test_add_to_cart_with_login(self):
         self.client.login(username='testuser', password='testpass123')
         response = self.client.get(reverse('add_to_cart', args=[self.item.id]))
-        # Должен быть редирект на список меню
         self.assertRedirects(response, reverse('menu_list'))
-        # Проверяем что товар добавился в сессию
         session = self.client.session
         self.assertIn('cart', session)
         self.assertIn(str(self.item.id), session['cart'])

@@ -48,16 +48,11 @@ def deduct_for_items(items):
 
 
 def has_recipe(item) -> bool:
-    # ВАЖНО: проверяем через related manager, чтобы не было несовпадений по модели/импорту
+    # чтобы не было несовпадений по модели/импорту
     return item.ingredients.exists()
 
 
 def has_ingredients(item, portions=1) -> bool:
-    """
-    Реальная проверка "в наличии":
-    - должен быть рецепт (ингредиенты)
-    - по каждому ингредиенту stock >= amount * portions
-    """
     qs = item.ingredients.select_related("product").all()
     if not qs.exists():
         return False

@@ -55,7 +55,7 @@ def nav_badges(request):
         else:
             badges["cook_issue"] = orders.count() + meals.count()
 
-        # Склад: подсветка "что изменилось" — сравниваем количество проблемных позиций
+        # подсветка  — сравниваем количество проблемных позиций
         low_now = Product.objects.filter(stock__lt=F("min_stock")).count()
         low_seen = seen_counts.get("stock_list")
         badges["stock_list"] = low_now if low_seen is None or low_now != low_seen else 0

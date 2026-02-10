@@ -91,8 +91,6 @@ def update_cart(request, item_id, action):
     })
 
 def ensure_default_menu():
-    # Если данные уже засеяны миграциями (0004/0005), ничего не добавляем.
-    # Берём маркер из исходного набора блюд.
     marker_name = 'Гречка с курицей в томатном соусе'
     if MenuItem.objects.filter(name=marker_name).exists():
         return
@@ -143,30 +141,30 @@ def menu_list(request):
         if raw:
             selected_allergens = [a.strip() for a in raw.split(",") if a.strip()]
 
-    # 1) Собираем queryset с нужными связями (чтобы has_ingredients не делал лишних запросов)
+    #  Собираем queryset с нужными связями
     qs = (MenuItem.objects.filter(is_available=True)
           .select_related('category')
           .prefetch_related('ingredients__product'))
 
-    # 2) Исключаем блюда с выбранными аллергенами
+    # Исключаем блюда с выбранными аллергенами
     for a in selected_allergens:
         qs = qs.exclude(allergens__contains=a)
 
-    # 3) Поиск
+    # Поиск
     if search_query:
         qs = qs.filter(Q(name__icontains=search_query) | Q(description__icontains=search_query))
 
-    # 4) ВАЖНО: превращаем в список, чтобы дальше не создавать новые queryset-объекты
+    # превращаем в список, чтобы дальше не создавать новые queryset-объекты
     items = list(qs)
 
-    # 5) Считаем доступность для клиента (для каждого блюда)
+    # Считаем доступность для клиента (для каждого блюда)
     not_available_ids = set()
     for item in items:
         item.client_available = item.is_available and has_ingredients(item, portions=1)
         if not item.client_available:
             not_available_ids.add(item.id)
 
-    # 6) Группируем по категориям ИЗ ЭТОГО ЖЕ СПИСКА (а не через .filter(category=...))
+    # Группируем по категориям
     categories_with_items = []
     for category in categories:
         cat_items = [i for i in items if i.category_id == category.id]
@@ -316,7 +314,7 @@ def checkout(request):
         return redirect('menu_list')
 
     # Собираем товары корзины
-    cart_lines = []  # [(MenuItem, qty, price)]
+    cart_lines = []
     total = Decimal('0')
 
     for item_id, item_data in cart.items():

@@ -60,7 +60,7 @@ class Command(BaseCommand):
 
                 total_items += 1
 
-                # INGREDIENTS: берем именно из item_data["ingredients"]
+                # берем именно из item_data
                 ingredients = item_data.get("ingredients") or []
                 keep = set()
 
@@ -70,7 +70,6 @@ class Command(BaseCommand):
                         continue
                     unit = (ing.get("unit") or "г").strip()
 
-                    # важно: Decimal, чтобы не ломалось сохранение
                     amount = Decimal(str(ing.get("amount", 0)))
 
                     keep.add(product_name)

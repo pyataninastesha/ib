@@ -57,8 +57,6 @@ class MenuItem(models.Model):
 
 
 class BanquetMenu(models.Model):
-    """Готовый набор блюд для банкета (кейтеринг)."""
-
     STATUS_PENDING = 'pending'
     STATUS_APPROVED = 'approved'
     STATUS_REJECTED = 'rejected'
@@ -73,7 +71,7 @@ class BanquetMenu(models.Model):
     description = models.TextField(blank=True, verbose_name='Описание')
     items = models.ManyToManyField('MenuItem', blank=True, related_name='banquet_menus', verbose_name='Блюда')
 
-    # ВАЖНО: повар создаёт → админ принимает/отклоняет
+    # повар создает, админ принимает
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -114,7 +112,6 @@ class BanquetMenu(models.Model):
 
     @property
     def price_per_person(self):
-        """Сумма цен блюд в наборе (за 1 гостя)."""
         total = Decimal('0')
         for it in self.items.all():
             try:
