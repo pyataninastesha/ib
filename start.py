@@ -1,6 +1,7 @@
 import argparse
 import hashlib
 import os
+import secrets
 import socket
 import subprocess
 import sys
@@ -10,10 +11,11 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 VENV_DIR = os.path.join(BASE_DIR, ".venv")
 REQ_FILE = os.path.join(BASE_DIR, "requirements.txt")
 REQ_HASH_FILE = os.path.join(VENV_DIR, ".requirements.sha256")
+SECRET_FILE = os.path.join(BASE_DIR, ".local_secret_key")
 
 
-def run(cmd):
-    subprocess.check_call(cmd)
+def run(cmd, env=None):
+    subprocess.check_call(cmd, cwd=BASE_DIR, env=env)
 
 
 def read_bytes(path: str) -> bytes:
@@ -21,24 +23,9 @@ def read_bytes(path: str) -> bytes:
         return f.read()
 
 
-def fix_requirements_encoding():
-    raw = read_bytes(REQ_FILE)
-    try:
-        raw.decode("utf-8")
-        return
-    except UnicodeDecodeError:
-        text = raw.decode("utf-16")
-        with open(REQ_FILE, "w", encoding="utf-8") as f:
-            f.write(text)
-        print("✔ requirements.txt перекодирован в UTF-8")
-
-
 def create_venv():
     if not os.path.exists(VENV_DIR):
-        print("📦 Создание виртуального окружения...")
         venv.create(VENV_DIR, with_pip=True)
-    else:
-        print("✔ Виртуальное окружение уже существует")
 
 
 def venv_python():
@@ -56,7 +43,6 @@ def sha256_of_file(path: str) -> str:
 def needs_install() -> bool:
     if not os.path.exists(REQ_HASH_FILE):
         return True
-
     current = sha256_of_file(REQ_FILE).strip()
     old = read_bytes(REQ_HASH_FILE).decode("utf-8").strip()
     return current != old
@@ -68,21 +54,36 @@ def write_req_hash():
         f.write(sha256_of_file(REQ_FILE))
 
 
-def install_requirements(python_exec: str, force: bool = False):
-    if (not force) and (not needs_install()):
-        print("✔ Зависимости уже установлены (requirements.txt не менялся)")
+def install_requirements(python_exec: str):
+    if not os.path.exists(REQ_FILE):
         return
-
-    print("📥 Установка/обновление зависимостей...")
-    # pip обновлять не обязательно каждый раз — делаем только при установке зависимостей
+    if not needs_install():
+        return
     run([python_exec, "-m", "pip", "install", "--upgrade", "pip"])
     run([python_exec, "-m", "pip", "install", "-r", REQ_FILE])
     write_req_hash()
 
 
-def migrate(python_exec: str):
-    print("🗄 Применение миграций...")
-    run([python_exec, "manage.py", "migrate"])
+def ensure_secret_key() -> str:
+    key = os.environ.get("SECRET_KEY")
+    if key:
+        return key
+
+    if os.path.exists(SECRET_FILE):
+        with open(SECRET_FILE, "r", encoding="utf-8") as f:
+            return f.read().strip()
+
+    key = secrets.token_urlsafe(64)
+    with open(SECRET_FILE, "w", encoding="utf-8") as f:
+        f.write(key)
+    return key
+
+
+def build_env():
+    env = os.environ.copy()
+    env.setdefault("SECRET_KEY", ensure_secret_key())
+    env.setdefault("DEBUG", "True")
+    return env
 
 
 def is_port_free(port: int, host: str = "127.0.0.1") -> bool:
@@ -100,36 +101,29 @@ def pick_port(preferred: int) -> int:
     return 0
 
 
-def runserver(python_exec: str, port: int):
-    if port == 0:
-        print("❌ Не удалось найти свободный порт рядом с указанным.")
-        sys.exit(1)
-
-    print(f"🚀 Запуск сервера: http://127.0.0.1:{port}/")
-    run([python_exec, "manage.py", "runserver", f"127.0.0.1:{port}"])
-
-
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--port", type=int, default=8000, help="Порт для запуска (по умолчанию 8000)")
-    parser.add_argument("--force-install", action="store_true", help="Форсировать установку зависимостей заново")
+    parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
 
     if not os.path.exists(os.path.join(BASE_DIR, "manage.py")):
-        print("❌ start.py должен лежать в корне проекта, рядом с manage.py")
         sys.exit(1)
 
-    fix_requirements_encoding()
     create_venv()
     py = venv_python()
+    install_requirements(py)
 
-    install_requirements(py, force=args.force_install)
-    migrate(py)
+    env = build_env()
+
+    run([py, "manage.py", "makemigrations"], env=env)
+    run([py, "manage.py", "migrate"], env=env)
+    run([py, "manage.py", "seed_menu", "--reset"], env=env)
 
     port = pick_port(args.port)
-    if port != args.port:
-        print(f"⚠ Порт {args.port} занят, беру свободный {port}")
-    runserver(py, port)
+    if port == 0:
+        sys.exit(1)
+
+    run([py, "manage.py", "runserver", f"127.0.0.1:{port}"], env=env)
 
 
 if __name__ == "__main__":
