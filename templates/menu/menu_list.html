@@ -1,0 +1,286 @@
+{% extends 'base.html' %}
+{% block title %}Меню кейтеринга{% endblock %}
+
+{% block content %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+  <div>
+    <h1 class="mb-0">Праздничное меню</h1>
+    <div class="text-muted">Выбирайте блюда и собирайте наборы для банкета.</div>
+  </div>
+  {% if user.is_authenticated and user.role == 'student' %}
+    <a class="btn btn-primary" href="{% url 'banquets' %}"><i class="bi bi-stars"></i> Выбрать банкет</a>
+  {% endif %}
+</div>
+
+<form method="get" class="mb-3 d-flex">
+    {% for a in selected_allergens %}
+        <input type="hidden" name="allergen" value="{{ a }}">
+    {% endfor %}
+
+    {% if section %}
+      <input type="hidden" name="section" value="{{ section }}">
+    {% endif %}
+
+    <input type="text"
+           class="form-control me-2"
+           name="search"
+           placeholder="Поиск блюд..."
+           value="{{ search_query }}">
+    <button class="btn btn-outline-primary" type="submit">Поиск</button>
+</form>
+
+{# Быстрый фильтр по разделам #}
+<div class="d-flex flex-wrap gap-2 mb-3">
+  {% with s=section|default:"" %}
+    <a class="btn btn-sm {% if not s %}btn-primary{% else %}btn-outline-primary{% endif %}"
+       href="?{% if search_query %}search={{ search_query|urlencode }}&{% endif %}{% for a in selected_allergens %}allergen={{ a|urlencode }}&{% endfor %}allergen_filter=1">
+      Все
+    </a>
+    <a class="btn btn-sm {% if s == 'snacks' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+       href="?section=snacks&{% if search_query %}search={{ search_query|urlencode }}&{% endif %}{% for a in selected_allergens %}allergen={{ a|urlencode }}&{% endfor %}allergen_filter=1">
+      Закуски
+    </a>
+    <a class="btn btn-sm {% if s == 'main' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+       href="?section=main&{% if search_query %}search={{ search_query|urlencode }}&{% endif %}{% for a in selected_allergens %}allergen={{ a|urlencode }}&{% endfor %}allergen_filter=1">
+      Основные блюда
+    </a>
+    <a class="btn btn-sm {% if s == 'drinks' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+       href="?section=drinks&{% if search_query %}search={{ search_query|urlencode }}&{% endif %}{% for a in selected_allergens %}allergen={{ a|urlencode }}&{% endfor %}allergen_filter=1">
+      Напитки
+    </a>
+  {% endwith %}
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="mb-3">Фильтр аллергенов</h5>
+
+        <form method="get">
+            <input type="hidden" name="allergen_filter" value="1">
+            {% if section %}
+                <input type="hidden" name="section" value="{{ section }}">
+            {% endif %}
+            {% if search_query %}
+                <input type="hidden" name="search" value="{{ search_query }}">
+            {% endif %}
+
+            <div class="row">
+                {% for key, name in allergens %}
+                    <div class="col-md-4 col-lg-3">
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   name="allergen"
+                                   value="{{ key }}"
+                                   id="a_{{ key }}"
+                                   {% if key in selected_allergens %}checked{% endif %}>
+                            <label class="form-check-label" for="a_{{ key }}">
+                                {{ name }}
+                            </label>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="mt-3 d-flex gap-2">
+                <button class="btn btn-primary btn-sm" type="submit">Применить</button>
+                <a class="btn btn-outline-secondary btn-sm"
+                   href="?{% if search_query %}search={{ search_query|urlencode }}{% endif %}">
+                    Сбросить
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% for category, items in categories_with_items %}
+    <h2 class="mt-4">
+        {% if category.name == 'Завтраки' %}Закуски
+        {% elif category.name == 'Обеды' %}Основные блюда
+        {% else %}{{ category.name }}{% endif %}
+    </h2>
+
+    <div class="row">
+        {% for item in items %}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow-sm">
+
+                    {% if item.image %}
+                        <img src="{{ item.image.url }}" class="card-img-top" alt="{{ item.name }}">
+                    {% else %}
+                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 220px;">
+                            <span style="font-size: 60px;">🍽️</span>
+                        </div>
+                    {% endif %}
+
+                    <div class="card-body">
+                        <h5 class="card-title">{{ item.name }}</h5>
+
+                        {% if request.user.is_authenticated and request.user.role != "student" %}
+                            <p class="card-text text-muted small">
+                                {{ item.description|default:""|truncatechars:140 }}
+                            </p>
+
+                            <div class="mt-2 small">
+                                <strong>Ингредиенты:</strong>
+                                {% for ing in item.ingredients.all|slice:":6" %}
+                                    <span class="badge bg-light text-dark border me-1 mb-1">{{ ing.product.name }}</span>
+                                {% empty %}
+                                    <span class="text-muted">не указаны</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="mt-2 small">
+                                <strong>Ингредиенты:</strong>
+                                {% for ing in item.ingredients.all|slice:":8" %}
+                                    <span class="badge bg-light text-dark border me-1 mb-1">{{ ing.product.name }}</span>
+                                {% empty %}
+                                    <span class="text-muted">не указаны</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        {% if item.allergens %}
+                            <div class="mt-2">
+                                <strong>Аллергены:</strong><br>
+                                {% for a in item.allergens.split %}
+                                    {% for key, name in allergens %}
+                                        {% if key == a %}
+                                            <span class="badge bg-warning text-dark me-1 mb-1">{{ name }}</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+                        <strong>{{ item.price }} ₽</strong>
+
+                        {% if user.is_authenticated and user.role == 'student' %}
+
+                            <a href="{% url 'item_detail' item.id %}" class="btn btn-sm btn-outline-primary">
+                                Карточка
+                            </a>
+
+                            {# ✅ НАЛИЧИЕ: используем item.client_available #}
+                            {% if item.client_available %}
+                                <div class="d-flex align-items-center gap-2 cart-controls" data-item-id="{{ item.id }}">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary cart-minus" title="Уменьшить">
+                                        <i class="bi bi-dash"></i>
+                                    </button>
+
+                                    <span class="cart-qty badge bg-secondary" style="min-width: 34px; text-align:center;">0</span>
+
+                                    <button type="button" class="btn btn-sm btn-outline-primary cart-plus" title="Добавить">
+                                        <i class="bi bi-plus"></i>
+                                    </button>
+
+                                    <i class="bi bi-cart3 text-primary" title="Корзина"></i>
+                                </div>
+                            {% else %}
+                                <div class="text-danger d-flex align-items-center gap-2">
+                                    <i class="bi bi-x-circle-fill"></i>
+                                    <span class="fw-semibold">нет в наличии, появится позже</span>
+                                </div>
+                            {% endif %}
+
+                        {% else %}
+                            <a href="{% url 'item_detail' item.id %}" class="btn btn-sm btn-outline-primary">
+                                Открыть карточку
+                            </a>
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% empty %}
+    <div class="alert alert-warning">Блюд не найдено.</div>
+{% endfor %}
+
+{% endblock %}
+
+{% block scripts %}
+{% if user.is_authenticated and user.role == 'student' %}
+<form style="display:none">{% csrf_token %}</form>
+{{ cart_quantities|json_script:"cart-quantities" }}
+
+<script>
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  const csrftoken = getCookie('csrftoken');
+  const qtyMap = JSON.parse(document.getElementById('cart-quantities').textContent || '{}');
+
+  function setUI(block, qty) {
+    const minusBtn = block.querySelector('.cart-minus');
+    const qtySpan = block.querySelector('.cart-qty');
+    qtySpan.textContent = String(qty);
+    minusBtn.disabled = qty <= 0;
+  }
+
+  function setHeaderCartCount(count) {
+    const badge = document.getElementById('cart-count-badge');
+    if (!badge) return;
+    const next = Math.max(0, parseInt(String(count || 0), 10) || 0);
+    badge.textContent = String(next);
+    badge.style.display = next <= 0 ? 'none' : 'inline-block';
+  }
+
+  async function post(url) {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': csrftoken,
+      },
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      // если сервер вернул ok:false / error — покажем причину
+      const msg = data && data.error ? data.error : 'Не удалось обновить корзину';
+      alert(msg);
+      throw new Error(msg);
+    }
+    return data;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.cart-controls').forEach(block => {
+      const itemId = block.dataset.itemId;
+      const initialQty = Number(qtyMap[itemId] || 0);
+      setUI(block, initialQty);
+
+      block.querySelector('.cart-plus').addEventListener('click', async () => {
+        const data = await post(`/menu/update-cart/${itemId}/increase/`);
+        const after = Number(data.quantity || 0);
+        setUI(block, after);
+        if (typeof data.cart_count !== 'undefined') setHeaderCartCount(data.cart_count);
+      });
+
+      block.querySelector('.cart-minus').addEventListener('click', async () => {
+        const data = await post(`/menu/update-cart/${itemId}/decrease/`);
+        const after = Number(data.quantity || 0);
+        setUI(block, after);
+        if (typeof data.cart_count !== 'undefined') setHeaderCartCount(data.cart_count);
+      });
+    });
+  });
+</script>
+{% endif %}
+{% endblock %}

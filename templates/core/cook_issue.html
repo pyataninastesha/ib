@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Заказы{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div>
+    <h1 class="mb-0">Заказы</h1>
+    <div class="text-muted">Отмечай готовность, выдачу или отмену заказов.</div>
+  </div>
+</div>
+
+{% if not orders %}
+  <div class="alert alert-info mb-0">Пока нет заказов.</div>
+{% else %}
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Клиент</th>
+          <th>Тип</th>
+          <th>Сумма</th>
+          <th>Создан</th>
+          <th style="min-width: 320px;">Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in orders %}
+          <tr>
+            <td class="fw-bold">#{{ o.id }}</td>
+            <td>{{ o.user.username }}</td>
+            <td>
+              {% if o.order_type == "banquet" %}
+                <span class="badge bg-primary">Банкет</span>
+              {% else %}
+                <span class="badge bg-secondary">Обычный</span>
+              {% endif %}
+            </td>
+            <td>{{ o.total_amount }} ₽</td>
+            <td class="text-muted small">{{ o.created_at|date:"d.m.Y H:i" }}</td>
+            <td>
+              <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="badge
+                  {% if o.status == 'pending' %}bg-warning text-dark
+                  {% elif o.status == 'confirmed' %}bg-info text-dark
+                  {% elif o.status == 'preparing' %}bg-info text-dark
+                  {% elif o.status == 'ready' %}bg-primary
+                  {% elif o.status == 'completed' %}bg-success
+                  {% elif o.status == 'cancelled' %}bg-danger
+                  {% else %}bg-secondary{% endif %}">
+                  {{ o.get_status_display }}
+                </span>
+
+                {% if o.status != 'completed' and o.status != 'cancelled' %}
+                  <form method="post" class="m-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="order_ready">
+                    <input type="hidden" name="order_id" value="{{ o.id }}">
+                    <button class="btn btn-sm btn-outline-primary" type="submit" {% if o.status == 'ready' %}disabled{% endif %}>
+                      Готов
+                    </button>
+                  </form>
+
+                  <form method="post" class="m-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="order_complete">
+                    <input type="hidden" name="order_id" value="{{ o.id }}">
+                    <button class="btn btn-sm btn-success" type="submit" {% if o.status != 'ready' %}disabled{% endif %}>
+                      Выдать
+                    </button>
+                  </form>
+
+                  <form method="post" class="m-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="order_cancel">
+                    <input type="hidden" name="order_id" value="{{ o.id }}">
+                    <button class="btn btn-sm btn-outline-danger" type="submit">
+                      Отменить
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
+              {% if o.status != 'completed' and o.status != 'cancelled' %}
+                <div class="small text-muted mt-2">
+                  “Выдать” активно только после статуса “Готов к выдаче”.
+                </div>
+              {% endif %}
+            </td>
+          </tr>
+
+          {% if o.orderitem_set.all %}
+            <tr>
+              <td></td>
+              <td colspan="5">
+                <div class="small text-muted mb-1">Состав:</div>
+                <ul class="mb-0">
+                  {% for line in o.orderitem_set.all %}
+                    <li>{{ line.item.name }} × {{ line.quantity }}</li>
+                  {% endfor %}
+                </ul>
+              </td>
+            </tr>
+          {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+{% endblock %}

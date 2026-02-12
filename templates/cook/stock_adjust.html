@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Изменить остаток{% endblock %}
+{% block content %}
+<h2 class="mb-3">
+  {% if action == "add" %}➕ Пополнить{% else %}➖ Списать{% endif %}
+  — {{ product.name }}
+</h2>
+
+<p class="text-muted">Сейчас: <b>{{ product.stock }}</b> {{ product.unit }}</p>
+
+<form method="post" class="card p-3" style="max-width:520px;">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button class="btn btn-primary">
+    {% if action == "add" %}Пополнить{% else %}Списать{% endif %}
+  </button>
+  <a class="btn btn-link" href="{% url 'stock_list' %}">Назад</a>
+</form>
+{% endblock %}
