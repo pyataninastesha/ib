@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Проведённые банкеты{% endblock %}
+
+{% block content %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div>
+    <h1 class="mb-0">Проведённые банкеты</h1>
+    <div class="text-muted">Список банкетов со статусом «Завершен» за выбранный период.</div>
+  </div>
+
+  <form method="get" class="d-flex align-items-center gap-2">
+    <label class="text-muted small" for="days">Период:</label>
+    <select class="form-select form-select-sm" id="days" name="days" onchange="this.form.submit()">
+      {% for d in days_options %}
+        <option value="{{ d }}" {% if days == d %}selected{% endif %}>{{ d }} дн.</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-12 col-md-4">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="text-muted small">Банкетов</div>
+        <div class="fs-4 fw-bold">{{ total_cnt }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="text-muted small">Выручка</div>
+        <div class="fs-4 fw-bold">{{ revenue }} ₽</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="text-muted small">Среднее гостей</div>
+        <div class="fs-4 fw-bold">{{ guests_avg|floatformat:0 }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if not latest %}
+  <div class="alert alert-info mb-0">За выбранный период проведённых банкетов нет.</div>
+{% else %}
+  <div class="card shadow-sm">
+    <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <div class="fw-bold">Список</div>
+      <div class="text-muted small">с {{ start|date:"d.m.Y" }} по {{ today|date:"d.m.Y" }}</div>
+    </div>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Клиент</th>
+            <th>Дата</th>
+            <th>Гостей</th>
+            <th>Сумма</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in latest %}
+            <tr>
+              <td class="fw-bold">#{{ o.id }}</td>
+              <td>{{ o.user.username }}</td>
+              <td class="text-muted small">{{ o.created_at|date:"d.m.Y H:i" }}</td>
+              <td>{{ o.guests_count|default:"—" }}</td>
+              <td>{{ o.total_amount }} ₽</td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'admin_banquet_detail' o.id %}">Открыть</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
+
+{% endblock %}

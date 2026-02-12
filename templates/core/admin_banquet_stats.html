@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Статистика банкетов{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div>
+    <h1 class="mb-0">Статистика банкетов</h1>
+    <div class="text-muted">Проведённые банкеты за выбранный период.</div>
+  </div>
+
+  <form method="get" class="d-flex align-items-center gap-2">
+    <label class="text-muted small">Период:</label>
+    <select class="form-select form-select-sm" name="days" onchange="this.form.submit()">
+      {% for d in "7,14,30,90,180,365".split(",") %}
+        <option value="{{ d }}" {% if days|stringformat:"s" == d %}selected{% endif %}>{{ d }} дней</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-12 col-md-4">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="text-muted small">Проведено банкетов</div>
+        <div class="fs-3 fw-bold">{{ total_cnt }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="text-muted small">Выручка</div>
+        <div class="fs-3 fw-bold">{{ revenue }} ₽</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="text-muted small">Среднее число гостей</div>
+        <div class="fs-3 fw-bold">{{ guests_avg|floatformat:0 }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white fw-bold">По месяцам</div>
+      <div class="table-responsive">
+        <table class="table mb-0">
+          <thead><tr><th>Месяц</th><th>Банкетов</th><th>Выручка</th></tr></thead>
+          <tbody>
+            {% for row in by_month %}
+              <tr>
+                <td>{{ row.m|date:"m.Y" }}</td>
+                <td>{{ row.cnt }}</td>
+                <td>{{ row.sum }} ₽</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="3" class="text-muted">Нет данных</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white fw-bold">Топ блюд в банкетах</div>
+      <div class="table-responsive">
+        <table class="table mb-0">
+          <thead><tr><th>Блюдо</th><th>Кол-во</th></tr></thead>
+          <tbody>
+            {% for t in top_items %}
+              <tr><td>{{ t.item__name }}</td><td>{{ t.qty }}</td></tr>
+            {% empty %}
+              <tr><td colspan="2" class="text-muted">Нет данных</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm mt-3">
+  <div class="card-header bg-white fw-bold">Последние проведённые банкеты</div>
+  <div class="table-responsive">
+    <table class="table mb-0 align-middle">
+      <thead><tr><th>#</th><th>Клиент</th><th>Дата заказа</th><th>Дата мероприятия</th><th>Гостей</th><th>Сумма</th></tr></thead>
+      <tbody>
+        {% for o in latest %}
+          <tr>
+            <td class="fw-bold">#{{ o.id }}</td>
+            <td>{{ o.user.username }}</td>
+            <td class="text-muted small">{{ o.created_at|date:"d.m.Y H:i" }}</td>
+            <td>{% if o.event_date %}{{ o.event_date|date:"d.m.Y" }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td>{% if o.guests_count %}{{ o.guests_count }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td>{{ o.total_amount }} ₽</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="text-muted">Нет данных</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
