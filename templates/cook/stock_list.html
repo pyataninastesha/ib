@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Склад{% endblock %}
+{% block content %}
+<h2 class="mb-3">📦 Склад продуктов</h2>
+
+<form method="post" action="{% url 'stock_fill_to_min' %}" class="mb-3">
+  {% csrf_token %}
+  <button class="btn btn-outline-secondary btn-sm" type="submit">
+    Сформировать заявку до максимума
+  </button>
+</form>
+
+<form method="get" class="mb-3 d-flex gap-2">
+  <input class="form-control" name="q" placeholder="Поиск..." value="{{ q }}">
+  <button class="btn btn-outline-primary">Найти</button>
+</form>
+
+<style>
+  .low-stock {
+    background-color: #fff1f1 !important;
+    border-left: 4px solid #f2b5b5;
+  }
+</style>
+
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>Продукт</th>
+      <th>Остаток</th>
+      <th>Мин.</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in products %}
+    <tr{% if p.is_low %} class="low-stock"{% endif %}>
+      <td>{{ p.name }}</td>
+      <td><b>{{ p.stock }}</b> {{ p.unit }}</td>
+      <td>{{ p.min_stock }} {{ p.unit }}</td>
+      <td class="text-end">
+          <a class="btn btn-success btn-sm"
+             href="{% url 'add_to_purchase_request' p.id %}">
+             🛒 В заявку
+          </a>
+
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

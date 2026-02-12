@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block title %}Главная - Кейтеринг{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto text-center">
+        <h1 class="display-4 mb-4">Праздничный кейтеринг 🎀</h1>
+        <p class="lead mb-4">Соберите банкетное меню: закуски, горячее, десерты и напитки — всё в одном месте.</p>
+        
+        <div class="row mt-5">
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <i class="bi bi-gem display-4 text-primary mb-3"></i>
+                        <h4>Праздничные наборы</h4>
+                        <p>Готовые меню для банкетов — удобно выбрать и быстро оформить</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <i class="bi bi-shield-check display-4 text-danger mb-3"></i>
+                        <h4>Учет аллергенов</h4>
+                        <p>Подробная информация об аллергенах и составе каждого блюда</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <i class="bi bi-lightning-charge display-4 text-warning mb-3"></i>
+                        <h4>Быстрое оформление</h4>
+                        <p>Выберите меню, дату и количество гостей — остальное мы посчитаем</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-5">
+            <a href="{% url 'menu_list' %}" class="btn btn-primary btn-lg me-3">
+                <i class="bi bi-menu-button-wide"></i> Посмотреть блюда
+            </a>
+            {% if user.is_authenticated and user.role == 'student' %}
+                <a href="{% url 'banquets' %}" class="btn btn-outline-primary btn-lg">
+                    <i class="bi bi-stars"></i> Выбрать банкет
+                </a>
+            {% endif %}
+            {% if not user.is_authenticated %}
+                <a href="{% url 'register' %}" class="btn btn-outline-primary btn-lg">
+                    <i class="bi bi-person-plus"></i> Зарегистрироваться
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

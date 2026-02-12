@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% block title %}Банкетные меню{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+  <h1 class="mb-1">Банкетные меню</h1>
+  <div class="text-muted">Создай банкетное меню из блюд основного меню и отправь администратору на согласование.</div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <h5 class="mb-3">Создать банкетное меню</h5>
+
+    <form method="post">
+      {% csrf_token %}
+
+      <div class="row g-3">
+        <div class="col-md-8">
+          <label class="form-label">Название</label>
+          <input class="form-control" name="name" placeholder="Например: Свадьба" required>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Описание</label>
+          <textarea class="form-control" name="description" rows="3" placeholder="Доп. описание (необязательно)"></textarea>
+        </div>
+      </div>
+
+      <hr class="my-4">
+
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <h6 class="mb-0">Выберите позиции для банкета</h6>
+        <div class="text-muted small">Закуски, основные блюда и напитки</div>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-lg-4">
+          <div class="fw-semibold mb-2">Закуски</div>
+          {% for it in groups.snacks %}
+            <div class="form-check border rounded-3 p-2 mb-2 {% if it.id in not_available_ids %}opacity-50{% endif %}">
+              <input class="form-check-input" type="checkbox" name="items" value="{{ it.id }}" id="it_{{ it.id }}"
+                     {% if it.id in not_available_ids %}disabled{% endif %}>
+              <label class="form-check-label" for="it_{{ it.id }}">
+                <b>{{ it.name }}</b>
+                <div class="text-muted small">{{ it.price }} ₽</div>
+              </label>
+            </div>
+          {% empty %}
+            <div class="text-muted small">Нет позиций.</div>
+          {% endfor %}
+        </div>
+
+        <div class="col-lg-4">
+          <div class="fw-semibold mb-2">Основные блюда</div>
+          {% for it in groups.main %}
+            <div class="form-check border rounded-3 p-2 mb-2 {% if it.id in not_available_ids %}opacity-50{% endif %}">
+              <input class="form-check-input" type="checkbox" name="items" value="{{ it.id }}" id="it_{{ it.id }}"
+                     {% if it.id in not_available_ids %}disabled{% endif %}>
+              <label class="form-check-label" for="it_{{ it.id }}">
+                <b>{{ it.name }}</b>
+                <div class="text-muted small">{{ it.price }} ₽</div>
+              </label>
+            </div>
+          {% empty %}
+            <div class="text-muted small">Нет позиций.</div>
+          {% endfor %}
+        </div>
+
+        <div class="col-lg-4">
+          <div class="fw-semibold mb-2">Напитки</div>
+          {% for it in groups.drinks %}
+            <div class="form-check border rounded-3 p-2 mb-2 {% if it.id in not_available_ids %}opacity-50{% endif %}">
+              <input class="form-check-input" type="checkbox" name="items" value="{{ it.id }}" id="it_{{ it.id }}"
+                     {% if it.id in not_available_ids %}disabled{% endif %}>
+              <label class="form-check-label" for="it_{{ it.id }}">
+                <b>{{ it.name }}</b>
+                <div class="text-muted small">{{ it.price }} ₽</div>
+              </label>
+            </div>
+          {% empty %}
+            <div class="text-muted small">Нет позиций.</div>
+          {% endfor %}
+
+          {% if groups.other %}
+            <div class="mt-3">
+              <div class="fw-semibold mb-2">Другое</div>
+              {% for it in groups.other %}
+                <div class="form-check border rounded-3 p-2 mb-2 {% if it.id in not_available_ids %}opacity-50{% endif %}">
+                  <input class="form-check-input" type="checkbox" name="items" value="{{ it.id }}" id="it_{{ it.id }}"
+                         {% if it.id in not_available_ids %}disabled{% endif %}>
+                  <label class="form-check-label" for="it_{{ it.id }}">
+                    <b>{{ it.name }}</b>
+                    <div class="text-muted small">{{ it.category.name }} • {{ it.price }} ₽</div>
+                  </label>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="mt-3">
+        <button class="btn btn-primary" type="submit">
+          <i class="bi bi-send"></i> Отправить администратору
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h5 class="mb-3">Мои созданные банкетные меню</h5>
+
+    {% if my_menus %}
+      <div class="list-group">
+        {% for m in my_menus %}
+          <div class="list-group-item">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <div class="fw-bold">{{ m.name }}</div>
+
+              {% if m.status == 'pending' %}
+                <span class="badge bg-warning text-dark">на рассмотрении</span>
+              {% elif m.status == 'approved' %}
+                <span class="badge bg-success">принято</span>
+              {% elif m.status == 'rejected' %}
+                <span class="badge bg-danger">отклонено</span>
+              {% endif %}
+            </div>
+
+            {% if m.description %}
+              <div class="text-muted small mt-1">{{ m.description }}</div>
+            {% endif %}
+
+            <div class="mt-2 small">
+              <span class="text-muted">Блюда:</span>
+              {% if m.items.all %}
+                {% for it in m.items.all %}
+                  <span class="badge bg-light text-dark border">{{ it.name }}</span>
+                {% endfor %}
+              {% else %}
+                <span class="text-muted">нет</span>
+              {% endif %}
+            </div>
+
+            <div class="text-muted small mt-2">
+              Создано: {{ m.created_at|date:"d.m.Y H:i" }}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="text-muted">Пока нет созданных банкетных меню.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
