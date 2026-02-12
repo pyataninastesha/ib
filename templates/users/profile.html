@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}Профиль - Столовая{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-8 mx-auto">
+    <div class="card shadow">
+      <div class="card-header bg-primary text-white">
+        <h4 class="mb-0"><i class="bi bi-person-circle"></i> Мой профиль</h4>
+      </div>
+
+      <div class="card-body">
+        <div class="row mb-4">
+          <div class="col-md-3 text-center">
+            <div class="mb-3">
+              {% if user.avatar %}
+                <img src="{{ user.avatar.url }}" alt="Аватар" class="rounded-circle shadow" style="width:120px;height:120px;object-fit:cover;">
+              {% else %}
+                <i class="bi bi-person-bounding-box display-1 text-primary"></i>
+              {% endif %}
+            </div>
+            <h5 class="mb-1">{{ user.username }}</h5>
+            <p class="text-muted mb-0">
+              Пользователь с {{ user.date_joined|date:"d.m.Y" }}
+            </p>
+          </div>
+
+          <div class="col-md-9">
+            {% if is_student %}
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <div class="card h-100">
+                    <div class="card-body text-center">
+                      <i class="bi bi-wallet2 display-6 text-success mb-3"></i>
+                      <h5>Баланс</h5>
+                      <h3 class="text-success">{{ user.balance }} ₽</h3>
+                      <a href="{% url 'wallet' %}" class="btn btn-sm btn-outline-success">
+                        Пополнить
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                  <div class="card h-100">
+                    <div class="card-body text-center">
+                      <i class="bi bi-cart-check display-6 text-primary mb-3"></i>
+                      <h5>Заказы</h5>
+                      <h3 class="text-primary">{{ user.order_set.count }}</h3>
+                      <a href="{% url 'order_history' %}" class="btn btn-sm btn-outline-primary">
+                        История
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="card mb-4">
+          <div class="card-header">
+            <h5 class="mb-0">Редактировать профиль</h5>
+          </div>
+
+          <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+              {% csrf_token %}
+
+              <div class="mb-3">
+                <label for="id_avatar" class="form-label">Аватар</label>
+                {{ form.avatar }}
+                {% if form.avatar.errors %}
+                  <div class="text-danger">{{ form.avatar.errors }}</div>
+                {% endif %}
+                <div class="form-text">PNG/JPG. Можно не загружать.</div>
+              </div>
+
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="id_first_name" class="form-label">Имя</label>
+                  {{ form.first_name }}
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="id_last_name" class="form-label">Фамилия</label>
+                  {{ form.last_name }}
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="id_email" class="form-label">Email</label>
+                  {{ form.email }}
+                  {% if form.email.errors %}
+                    <div class="text-danger">{{ form.email.errors }}</div>
+                  {% endif %}
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="id_phone" class="form-label">Телефон</label>
+                  {{ form.phone }}
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-primary">
+                Сохранить изменения
+              </button>
+            </form>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,217 @@
+/* ==========================================
+   Stylish Catering Theme (less pink, premium)
+   ========================================== */
+
+/* --- Bootstrap color overrides (important!) --- */
+:root{
+  /* Bootstrap 5 uses these variables widely */
+  --bs-primary: #b83a6d;              /* muted rose */
+  --bs-primary-rgb: 184, 58, 109;
+
+  --bs-link-color: #b83a6d;
+  --bs-link-hover-color: #9b2f5c;
+
+  --bs-body-color: #1f2937;           /* slate */
+  --bs-body-bg: #fbfafb;              /* near-white */
+}
+
+/* --- Page background --- */
+html, body{
+  min-height: 100%;
+  background:
+    radial-gradient(900px 520px at 12% 0%, rgba(184,58,109,.08), transparent 62%),
+    radial-gradient(800px 480px at 88% 10%, rgba(184,58,109,.06), transparent 60%),
+    linear-gradient(180deg, #fbfafb 0%, #ffffff 60%, #fbfafb 100%);
+  color: var(--bs-body-color);
+}
+
+.app-body{
+  min-height: 100vh;
+}
+
+/* --- Surfaces --- */
+.app-surface{
+  background: #fff;
+  border-radius: 18px;
+  padding: 1.25rem;
+  border: 1px solid rgba(17,24,39,.10);
+  box-shadow: 0 10px 28px rgba(17,24,39,.08);
+}
+
+/* --- Navbar: NO bright pink --- */
+.navbar{
+  background: rgba(255,255,255,.86) !important;
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(17,24,39,.10);
+}
+
+.navbar.bg-primary,
+.navbar.text-bg-primary{
+  /* even if template uses bg-primary, keep it elegant */
+  background: rgba(255,255,255,.86) !important;
+}
+
+.navbar .navbar-brand,
+.navbar .nav-link{
+  color: #1f2937 !important;
+  font-weight: 600;
+}
+
+.navbar .nav-link:hover{
+  color: var(--bs-primary) !important;
+}
+
+/* --- Cards --- */
+.card{
+  border-radius: 18px;
+  border: 1px solid rgba(17,24,39,.10);
+  box-shadow: 0 8px 20px rgba(17,24,39,.06);
+  overflow: hidden;
+}
+
+.card-img-top{
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+}
+
+/* --- Fix "blue login header": override bg-primary blocks --- */
+.bg-primary{
+  background-color: var(--bs-primary) !important;
+}
+
+.text-bg-primary{
+  background-color: var(--bs-primary) !important;
+  color: #fff !important;
+}
+
+/* If the login form uses .card-header.bg-primary */
+.card-header.bg-primary,
+.card-header.text-bg-primary{
+  background: linear-gradient(135deg, #b83a6d, #9b2f5c) !important;
+  color: #fff !important;
+  border-bottom: 1px solid rgba(255,255,255,.20);
+}
+
+/* --- Buttons --- */
+.btn{
+  border-radius: 999px;
+  font-weight: 650;
+  padding: .58rem 1.05rem;
+  transition: transform .15s ease, filter .15s ease, box-shadow .15s ease;
+}
+
+.btn-primary{
+  --bs-btn-bg: var(--bs-primary);
+  --bs-btn-border-color: var(--bs-primary);
+  --bs-btn-hover-bg: #9b2f5c;
+  --bs-btn-hover-border-color: #9b2f5c;
+  --bs-btn-active-bg: #8b2952;
+  --bs-btn-active-border-color: #8b2952;
+  box-shadow: 0 10px 22px rgba(184,58,109,.18);
+}
+
+.btn-primary:hover{
+  transform: translateY(-1px);
+  filter: brightness(.98);
+}
+
+.btn-outline-primary{
+  --bs-btn-color: var(--bs-primary);
+  --bs-btn-border-color: rgba(184,58,109,.45);
+  --bs-btn-hover-bg: rgba(184,58,109,.10);
+  --bs-btn-hover-border-color: rgba(184,58,109,.55);
+}
+
+/* --- Links --- */
+a{ color: var(--bs-link-color); }
+a:hover{ color: var(--bs-link-hover-color); }
+
+/* --- Alerts --- */
+.alert{
+  border-radius: 14px;
+  border: 1px solid rgba(17,24,39,.10);
+  box-shadow: 0 6px 16px rgba(17,24,39,.06);
+}
+
+/* --- Inputs --- */
+.form-control, .form-select{
+  border-radius: 14px;
+  border: 1px solid rgba(17,24,39,.12);
+  box-shadow: none !important;
+}
+
+.form-control:focus, .form-select:focus{
+  border-color: rgba(184,58,109,.45);
+  box-shadow: 0 0 0 .25rem rgba(184,58,109,.14) !important;
+}
+
+/* --- Pills/tabs --- */
+.nav-pills .nav-link{
+  border-radius: 999px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.nav-pills .nav-link.active{
+  background: rgba(184,58,109,.12);
+  color: var(--bs-primary) !important;
+  border: 1px solid rgba(184,58,109,.25);
+}
+
+/* --- Badges --- */
+.nav-badge{
+  position: absolute;
+  top: 0;
+  right: -8px;
+  transform: translate(50%, -40%);
+  font-size: .70rem;
+  line-height: 1;
+  padding: .35em .55em;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.cart-badge{
+  position: relative;
+  top: -10px;
+}
+
+/* --- Footer --- */
+.app-footer{
+  margin-top: 2rem;
+  border-top: 1px solid rgba(17,24,39,.10);
+  background: rgba(255,255,255,.70);
+  color: #6b7280;
+}
+
+/* --- Fix navbar auth buttons visibility --- */
+.navbar .btn {
+  border-radius: 999px;
+  font-weight: 650;
+}
+
+/* Если "Войти" / "Регистрация" сделаны как outline/light — делаем их видимыми */
+.navbar .btn-outline-light,
+.navbar .btn-light,
+.navbar .btn-outline-secondary {
+  color: #1f2937 !important;
+  background: rgba(17, 24, 39, 0.04) !important;
+  border: 1px solid rgba(17, 24, 39, 0.14) !important;
+}
+
+.navbar .btn-outline-light:hover,
+.navbar .btn-light:hover,
+.navbar .btn-outline-secondary:hover {
+  background: rgba(17, 24, 39, 0.07) !important;
+}
+
+/* Если "Войти" сделан как outline-primary — тоже делаем аккуратным */
+.navbar .btn-outline-primary {
+  color: var(--bs-primary) !important;
+  border-color: rgba(var(--bs-primary-rgb), 0.45) !important;
+  background: rgba(255,255,255,0.70) !important;
+}
+
+.navbar .btn-outline-primary:hover {
+  background: rgba(var(--bs-primary-rgb), 0.10) !important;
+}

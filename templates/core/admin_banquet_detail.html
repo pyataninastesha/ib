@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Банкет #{{ order.id }}{% endblock %}
+
+{% block content %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div>
+    <h1 class="mb-0">Банкет #{{ order.id }}</h1>
+    <div class="text-muted">Клиент: {{ order.user.username }} · Создан: {{ order.created_at|date:"d.m.Y H:i" }}</div>
+  </div>
+  <a class="btn btn-outline-secondary" href="{% url 'admin_banquets_done' %}">
+    <i class="bi bi-arrow-left"></i> Назад
+  </a>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="fw-bold">Состав банкета</div>
+        <div class="badge bg-success">{{ order.get_status_display }}</div>
+      </div>
+      <div class="card-body">
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <div class="text-muted small">Дата мероприятия</div>
+            <div class="fw-semibold">{{ order.event_date|default:"—" }}</div>
+          </div>
+          <div class="col-6">
+            <div class="text-muted small">Гостей</div>
+            <div class="fw-semibold">{{ order.guests_count|default:"—" }}</div>
+          </div>
+          <div class="col-12">
+            <div class="text-muted small">Сумма</div>
+            <div class="fs-5 fw-bold">{{ order.total_amount }} ₽</div>
+          </div>
+        </div>
+
+        {% if order.orderitem_set.all %}
+          <ul class="list-group">
+            {% for line in order.orderitem_set.all %}
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                  <div class="fw-semibold">{{ line.item.name }}</div>
+                  <div class="text-muted small">{{ line.price }} ₽ за порцию</div>
+                </div>
+                <span class="badge bg-primary rounded-pill">× {{ line.quantity }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="alert alert-info mb-0">Состав не найден.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-5">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white">
+        <div class="fw-bold">Отзыв о банкете</div>
+      </div>
+      <div class="card-body">
+        {% if review %}
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="fw-semibold">Оценка: {{ review.rating }}/5</div>
+            <div class="text-muted small">{{ review.created_at|date:"d.m.Y H:i" }}</div>
+          </div>
+          {% if review.comment %}
+            <div class="border rounded p-2">{{ review.comment|linebreaksbr }}</div>
+          {% else %}
+            <div class="text-muted">Комментарий не оставлен.</div>
+          {% endif %}
+        {% else %}
+          <div class="text-muted">Пока нет отзыва от клиента.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
